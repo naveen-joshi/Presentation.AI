@@ -63,6 +63,33 @@ export async function createDeck(): Promise<void> {
   redirect(`/deck/${data.id}`);
 }
 
+export async function createDeckWithContent(
+  title: string,
+  markdown: string,
+  theme = "nord"
+): Promise<{ id: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { data, error } = await supabase
+    .from("decks")
+    .insert({
+      owner_id: user.id,
+      title: title || "AI Generated Presentation",
+      markdown,
+      theme: theme || "nord",
+    })
+    .select("id")
+    .single();
+
+  if (error) throw error;
+  revalidatePath("/dashboard");
+  return { id: data.id };
+}
+
 export async function updateDeck(
   id: string,
   updates: Partial<Pick<Deck, "title" | "markdown" | "theme" | "size" | "head_font" | "body_font" | "template" | "transition" | "visibility" | "slug">>

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getDecksByOwner, createDeck, deleteDeck } from "@/lib/actions/deck-actions";
-import { DeckGrid } from "./components";
+import { DeckGrid, DashboardActions } from "./components";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -21,26 +21,7 @@ export default async function DashboardPage() {
               : `${decks.length} deck${decks.length === 1 ? "" : "s"}`}
           </p>
         </div>
-        <form action={createDeck}>
-          <button
-            type="submit"
-            className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-brand-600 to-brand-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:from-brand-700 hover:to-brand-600 transition-all cursor-pointer active:scale-[0.98]"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            New deck
-          </button>
-        </form>
+        <DashboardActions />
       </div>
 
       {/* Deck grid */}

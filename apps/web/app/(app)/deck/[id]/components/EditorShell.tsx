@@ -9,6 +9,8 @@ import { SettingsPanel } from "./SettingsPanel";
 import { ShareModal } from "./ShareModal";
 import { SaveTemplateModal } from "./SaveTemplateModal";
 import { CollabBar } from "./CollabBar";
+import { AiGenerateModal } from "./AiGenerateModal";
+import { AiCopilotBar } from "./AiCopilotBar";
 import { updateDeckMarkdown, updateDeck } from "@/lib/actions/deck-actions";
 
 interface EditorShellProps {
@@ -35,6 +37,7 @@ export function EditorShell({
   const [showSettings, setShowSettings] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [showAiModal, setShowAiModal] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "idle">("idle");
 
   // Extract title from first heading
@@ -77,6 +80,41 @@ export function EditorShell({
     [deck.id, access.canEdit]
   );
 
+  const handleTransformSlide = async (
+    action: "punchy" | "summarize" | "expand" | "generate-notes" | "translate",
+    targetLanguage?: string
+  ) => {
+    if (!access.canEdit) return;
+    try {
+      const res = await fetch("/api/ai/transform", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          markdown,
+          action,
+          targetLanguage,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.result) {
+          setMarkdown(data.result);
+          saveMarkdown(data.result);
+        }
+      }
+    } catch (e) {
+      console.error("Transform error:", e);
+    }
+  };
+
+  const handleApplyAiGenerated = (newMd: string, newTheme?: string) => {
+    setMarkdown(newMd);
+    saveMarkdown(newMd);
+    if (newTheme) {
+      handleSettingChange("theme", newTheme);
+    }
+  };
+
   const handleDeckUpdated = (updates: Partial<Deck>) => {
     setDeck((prev) => ({ ...prev, ...updates }));
   };
@@ -115,6 +153,18 @@ export function EditorShell({
             <span className="text-xs text-emerald-500 animate-fade-in">
               ✓ Saved
             </span>
+          )}
+
+          {/* AI Generator trigger */}
+          {access.canEdit && (
+            <button
+              type="button"
+              onClick={() => setShowAiModal(true)}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 text-white font-semibold text-xs shadow-xs transition-all cursor-pointer"
+              title="Generate or rewrite deck with AI"
+            >
+              <span>✨</span> AI Copilot
+            </button>
           )}
 
           {/* Save as template */}
@@ -195,6 +245,17 @@ export function EditorShell({
             </svg>
           </button>
 
+          {/* Presenter View */}
+          <Link
+            href={`/deck/${deck.id}/presenter`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 rounded-md border border-[var(--border)] px-2.5 py-1 text-xs font-semibold text-[var(--text-secondary)] hover:text-foreground hover:bg-surface-2 transition-colors"
+            title="Open dual-screen Presenter Pro view with timer & notes"
+          >
+            <span>🎙️</span> Presenter
+          </Link>
+
           {/* Present */}
           <Link
             href={`/deck/${deck.id}/present`}
@@ -217,16 +278,23 @@ export function EditorShell({
 
       {/* Editor + Preview split */}
       <div className="flex flex-1 min-h-0">
-        {/* Markdown editor */}
-        <div className="flex-1 min-w-0 border-r border-[var(--border)]">
-          <MarkdownEditor
-            initialValue={markdown}
-            readOnly={!access.canEdit}
-            onChange={(val) => {
-              setMarkdown(val);
-              saveMarkdown(val);
-            }}
+        {/* Markdown editor with AI Copilot Bar */}
+        <div className="flex-1 min-w-0 border-r border-[var(--border)] flex flex-col">
+          <AiCopilotBar
+            onTransform={handleTransformSlide}
+            onOpenGenerator={() => setShowAiModal(true)}
+            disabled={!access.canEdit}
           />
+          <div className="flex-1 min-h-0">
+            <MarkdownEditor
+              initialValue={markdown}
+              readOnly={!access.canEdit}
+              onChange={(val) => {
+                setMarkdown(val);
+                saveMarkdown(val);
+              }}
+            />
+          </div>
         </div>
 
         {/* Preview pane */}
@@ -272,6 +340,14 @@ export function EditorShell({
           deckId={deck.id}
           defaultTitle={extractTitle(markdown) ?? deck.title}
           onClose={() => setShowTemplateModal(false)}
+        />
+      )}
+
+      {showAiModal && (
+        <AiGenerateModal
+          isOpen={showAiModal}
+          onClose={() => setShowAiModal(false)}
+          onApply={handleApplyAiGenerated}
         />
       )}
     </div>

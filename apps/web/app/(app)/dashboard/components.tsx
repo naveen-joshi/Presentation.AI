@@ -2,7 +2,63 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import type { Deck } from "@/lib/types";
+import { createDeck, createDeckWithContent } from "@/lib/actions/deck-actions";
+import { AiGenerateModal } from "../deck/[id]/components/AiGenerateModal";
+
+export function DashboardActions() {
+  const [showAiModal, setShowAiModal] = useState(false);
+  const router = useRouter();
+
+  const handleApplyAi = async (markdown: string, theme?: string) => {
+    const titleMatch = markdown.match(/^#\s+(.+)$/m);
+    const title = titleMatch ? titleMatch[1].trim() : "AI Generated Deck";
+    const res = await createDeckWithContent(title, markdown, theme || "nord");
+    router.push(`/deck/${res.id}`);
+  };
+
+  return (
+    <div className="flex items-center gap-2.5">
+      <button
+        type="button"
+        onClick={() => setShowAiModal(true)}
+        className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-brand-600 to-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-md hover:from-brand-700 hover:to-indigo-700 transition-all cursor-pointer active:scale-[0.98]"
+      >
+        <span>✨</span> Generate with AI
+      </button>
+
+      <form action={createDeck}>
+        <button
+          type="submit"
+          className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] bg-surface px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-surface-2 transition-all cursor-pointer active:scale-[0.98]"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          Blank deck
+        </button>
+      </form>
+
+      {showAiModal && (
+        <AiGenerateModal
+          isOpen={showAiModal}
+          onClose={() => setShowAiModal(false)}
+          onApply={handleApplyAi}
+        />
+      )}
+    </div>
+  );
+}
 
 const THEME_COLORS: Record<string, string> = {
   nord: "from-blue-400 to-teal-500",

@@ -136,7 +136,7 @@ Free • Open Source • Markdown Native
 };
 
 export function LivePlayground() {
-  const [activeTab, setActiveTab] = useState<"playground" | "themes" | "samples" | "collab">("playground");
+  const [activeTab, setActiveTab] = useState<"playground" | "ai" | "themes" | "samples" | "presenter" | "collab">("playground");
   const [selectedSample, setSelectedSample] = useState<string>("pitch");
   const [markdown, setMarkdown] = useState<string>(SAMPLE_DECKS.pitch.markdown);
   const [theme, setTheme] = useState<string>("nord");
@@ -145,8 +145,51 @@ export function LivePlayground() {
   const [transition, setTransition] = useState<string>("slide");
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
+  // AI Generator state
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiSlideCount, setAiSlideCount] = useState("5");
+  const [aiAudience, setAiAudience] = useState("developers");
+  const [isAiGenerating, setIsAiGenerating] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const fullscreenIframeRef = useRef<HTMLIFrameElement>(null);
+
+  const handleGenerateWithAi = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!aiPrompt.trim()) return;
+
+    setIsAiGenerating(true);
+    setAiError(null);
+
+    try {
+      const res = await fetch("/api/ai/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: aiPrompt,
+          slideCount: Number(aiSlideCount),
+          audience: aiAudience,
+          theme: theme,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to generate presentation");
+      }
+
+      const data = await res.json();
+      setMarkdown(data.markdown);
+      if (data.theme) setTheme(data.theme);
+      setActiveTab("playground");
+    } catch (err: unknown) {
+      const e = err as Error;
+      setAiError(e?.message || "Generation error");
+    } finally {
+      setIsAiGenerating(false);
+    }
+  };
 
   // Generate preview shell
   const shellHtml = useMemo(() => {
@@ -253,23 +296,35 @@ export function LivePlayground() {
     <div className="w-full">
       {/* ─── Tabs Header ────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6 border-b border-[var(--border)] pb-4">
-        <div className="flex items-center gap-1.5 p-1 bg-surface rounded-xl border border-[var(--border)]">
+        <div className="flex flex-wrap items-center gap-1.5 p-1 bg-surface rounded-xl border border-[var(--border)]">
           <button
             type="button"
             onClick={() => setActiveTab("playground")}
-            className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               activeTab === "playground"
                 ? "bg-brand-600 text-white shadow-sm"
                 : "text-[var(--text-secondary)] hover:text-foreground"
             }`}
           >
-            <span>⚡</span> Live Playground
+            <span>⚡</span> Playground
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("ai")}
+            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              activeTab === "ai"
+                ? "bg-gradient-to-r from-brand-600 to-indigo-600 text-white shadow-sm font-bold"
+                : "text-[var(--text-secondary)] hover:text-foreground"
+            }`}
+          >
+            <span>✨</span> AI Generator
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab("themes")}
-            className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               activeTab === "themes"
                 ? "bg-brand-600 text-white shadow-sm"
                 : "text-[var(--text-secondary)] hover:text-foreground"
@@ -281,7 +336,7 @@ export function LivePlayground() {
           <button
             type="button"
             onClick={() => setActiveTab("samples")}
-            className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               activeTab === "samples"
                 ? "bg-brand-600 text-white shadow-sm"
                 : "text-[var(--text-secondary)] hover:text-foreground"
@@ -292,8 +347,20 @@ export function LivePlayground() {
 
           <button
             type="button"
+            onClick={() => setActiveTab("presenter")}
+            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              activeTab === "presenter"
+                ? "bg-brand-600 text-white shadow-sm"
+                : "text-[var(--text-secondary)] hover:text-foreground"
+            }`}
+          >
+            <span>🎙️</span> Presenter View
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveTab("collab")}
-            className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               activeTab === "collab"
                 ? "bg-brand-600 text-white shadow-sm"
                 : "text-[var(--text-secondary)] hover:text-foreground"
@@ -421,6 +488,152 @@ export function LivePlayground() {
               title="Live Slide Preview"
               sandbox="allow-scripts allow-same-origin"
             />
+          </div>
+        </div>
+      )}
+
+      {/* ─── Tab: AI Generation Sandbox ─────────────────────────────── */}
+      {activeTab === "ai" && (
+        <div className="rounded-2xl border border-[var(--border)] bg-surface p-6 animate-fade-in space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--border)] pb-4">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-brand-600 to-indigo-600 text-white text-[10px] font-bold uppercase tracking-wider mb-1.5">
+                ⚡ NVIDIA Nemotron 3.5 Lightning (30B-A3B MoE)
+              </div>
+              <h3 className="font-bold text-foreground text-base">
+                Prompt-to-Presentation AI Engine
+              </h3>
+              <p className="text-xs text-[var(--text-secondary)]">
+                Generate complete multi-slide decks with code snippets, tables, and speaker notes in seconds.
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleGenerateWithAi} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-foreground mb-1.5">
+                What presentation do you want to create?
+              </label>
+              <textarea
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                placeholder="e.g. A high-stakes architectural keynote explaining Vector Databases, HNSW indexing, and sub-millisecond retrieval at scale..."
+                rows={3}
+                className="w-full rounded-xl border border-[var(--border)] bg-background px-3.5 py-2.5 text-xs text-foreground placeholder-[var(--text-tertiary)] outline-none focus:border-brand-500 transition-colors resize-none"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1.5">
+                  Length
+                </label>
+                <select
+                  value={aiSlideCount}
+                  onChange={(e) => setAiSlideCount(e.target.value)}
+                  className="w-full rounded-lg border border-[var(--border)] bg-background px-3 py-2 text-xs text-foreground outline-none cursor-pointer"
+                >
+                  <option value="3">3 Slides (Pitch)</option>
+                  <option value="5">5 Slides (Standard)</option>
+                  <option value="8">8 Slides (Deep Dive)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1.5">
+                  Target Audience
+                </label>
+                <select
+                  value={aiAudience}
+                  onChange={(e) => setAiAudience(e.target.value)}
+                  className="w-full rounded-lg border border-[var(--border)] bg-background px-3 py-2 text-xs text-foreground outline-none cursor-pointer"
+                >
+                  <option value="developers">Developers / Technical</option>
+                  <option value="executives">Executive Leadership</option>
+                  <option value="investors">Venture Capital / Investors</option>
+                  <option value="general">General Audience</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1.5">
+                  Theme Preset
+                </label>
+                <select
+                  value={theme}
+                  onChange={(e) => setTheme(e.target.value)}
+                  className="w-full rounded-lg border border-[var(--border)] bg-background px-3 py-2 text-xs text-foreground outline-none cursor-pointer"
+                >
+                  {THEME_OPTIONS.map((t) => (
+                    <option key={t.id} value={t.id}>{t.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {aiError && (
+              <div className="rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/40 p-3 text-xs text-red-600 dark:text-red-400">
+                {aiError}
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="submit"
+                disabled={isAiGenerating || !aiPrompt.trim()}
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 text-xs font-bold text-white shadow-lg transition-all disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+              >
+                {isAiGenerating ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Synthesizing with Nemotron 3.5 MoE…
+                  </>
+                ) : (
+                  <>
+                    <span>✨</span> Generate & Open in Playground →
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ─── Tab: Presenter Pro Simulator ───────────────────────────── */}
+      {activeTab === "presenter" && (
+        <div className="rounded-2xl border border-[var(--border)] bg-surface p-6 animate-fade-in space-y-6">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[10px] font-bold uppercase tracking-wider mb-1.5">
+              🎙️ Pro Speaking Suite
+            </div>
+            <h3 className="font-bold text-foreground text-base">
+              Dual-Screen Presenter Pro View
+            </h3>
+            <p className="text-xs text-[var(--text-secondary)] max-w-2xl leading-relaxed">
+              When presenting on a projector or stage, Presentation.AI gives you a dedicated cockpit with timer, upcoming slide previews, and real-time talking notes.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+            <div className="p-4 rounded-xl bg-background border border-[var(--border)]">
+              <span className="text-emerald-500 font-bold block mb-1">⏱️ Live Stopwatch & Timer</span>
+              <p className="text-[var(--text-secondary)] leading-relaxed">
+                Tracks talk pace and keeps you on schedule with pause, resume, and slide countdowns.
+              </p>
+            </div>
+            <div className="p-4 rounded-xl bg-background border border-[var(--border)]">
+              <span className="text-brand-500 font-bold block mb-1">👁️ Next Slide Preview</span>
+              <p className="text-[var(--text-secondary)] leading-relaxed">
+                See the upcoming slide before transitioning so your transitions and speech flow naturally.
+              </p>
+            </div>
+            <div className="p-4 rounded-xl bg-background border border-[var(--border)]">
+              <span className="text-amber-500 font-bold block mb-1">📝 Speaker Talking Notes</span>
+              <p className="text-[var(--text-secondary)] leading-relaxed">
+                Add <code>&lt;!-- note: talking points --&gt;</code> in Markdown to display private speaker cues.
+              </p>
+            </div>
           </div>
         </div>
       )}
