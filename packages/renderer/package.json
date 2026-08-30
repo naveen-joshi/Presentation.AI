@@ -1,0 +1,32 @@
+{
+  "name": "@presentation-ai/renderer",
+  "version": "0.1.0",
+  "description": "Markdown-to-presentation rendering engine: parser, themes, templates, transitions, deck/presenter HTML generation, preview iframe, lint, and PDF export. Core rendering vendored from deckrun (MIT, Copyright (c) 2026 Arpit Bhayani).",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./pdf": {
+      "types": "./dist/pdf.d.ts",
+      "import": "./dist/pdf.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0"
+  },
+  "dependencies": {
+    "marked": "^18.0.11"
+  }
+}
