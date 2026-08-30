@@ -32,30 +32,52 @@ Transform Markdown into world-class slides in seconds.
 ---
 
 ## ⚡ The Problem
-- Slide builders are clunky, slow, and proprietary.
-- Version control doesn't work on binary \`.pptx\` or \`.key\` files.
-- Developers and tech teams waste hours aligning boxes.
+:::grid(cols=3)
+:::card(title="Clunky UX", icon="🐌")
+Traditional slide tools waste hours on alignment and box tweaking.
+:::
+:::card(title="Binary Git Lock", icon="🔒")
+Version control fails completely on binary \`.pptx\` and \`.key\` files.
+:::
+:::card(title="Slow Delivery", icon="⏳")
+Content creation is disconnected from codebase and documentation.
+:::
+:::
 
 ---
 
 ## 💡 The Solution
-1. **Markdown Native**: Keep presentations in Git alongside your code.
-2. **Instant Theming**: Choose from 30+ crafted themes.
-3. **Real-time Sync**: Collaborate seamlessly with CRDTs.
+
+:::callout(type="tip")
+💡 **Markdown First**: Keep your presentations directly in Git with branch reviews, pull requests, and instant CI deploys.
+:::
+
+:::grid(cols=3)
+:::metric(value="+340%", label="Creation Speed", sub="Compared to manual editors")
+:::metric(value="0 ms", label="Merge Conflicts", sub="Automated CRDT resolution")
+:::metric(value="30+", label="Theme Presets", sub="Engineered typography")
+:::
 
 ---
 
-## 📊 Market Traction
-| Metric | Q1 | Q2 | Q3 |
-|---|---|---|---|
-| Active Decks | 1,200 | 8,400 | 32,000 |
-| Teams | 45 | 320 | 1,400 |
-| NPS Score | 72 | 78 | 84 |
+## 🏗️ Architecture Pipeline
+
+\`\`\`mermaid
+graph LR
+  A[Markdown Source] --> B[Renderer Engine]
+  B --> C[Vector PDF Print]
+  B --> D[Dual-Screen Presenter]
+  B --> E[Mobile Touch Remote]
+\`\`\`
+
+<!-- note:
+Remember to highlight the sub-second compilation and vector PDF engine.
+-->
 
 ---
 
 # Ready to experience the future?
-Built with Next.js, React 19, and Yjs CRDTs.
+Built with Next.js 16, React 19, and Yjs CRDTs.
 `,
   },
   code: {
@@ -67,39 +89,44 @@ Deep dive into Conflict-Free Replicated Data Types.
 
 ---
 
-## What is a State Vector?
+## 💻 Quick Start
 
-A **State Vector** compacts logical clocks across all active clients:
-
-\`\`\`ts
-interface StateVector {
-  [clientID: number]: number; // client -> latest clock
-}
-
-const sv = Y.encodeStateVector(doc);
-\`\`\`
+:::terminal(title="bash")
+$ pnpm create presentation my-talk
+$ cd my-talk && pnpm dev
+✓ Ready at http://localhost:3000
+:::
 
 ---
 
-## Deterministic Convergence
+## 🔄 State Vector Convergence
 
 \`\`\`ts
-// 1. Client A sends state vector
+// 1. Client A sends compact state vector
 channel.send({ event: "sync-step-1", svA });
 
 // 2. Client B computes exact missing diff
 const diffForA = Y.encodeStateAsUpdate(docB, svA);
 
-// 3. Client A applies update without conflicts
+// 3. Client A applies update with 0 conflict
 Y.applyUpdate(docA, diffForA);
 \`\`\`
 
 ---
 
-## 🎯 Key Takeaways
-- No central lock contention.
-- Zero data loss on network partition.
-- True offline-first capability.
+## 🎯 Architectural Guarantees
+
+:::grid(cols=3)
+:::card(title="Deterministic", icon="🎯")
+Every connected peer converges to the identical presentation state.
+:::
+:::card(title="Offline First", icon="📴")
+Edit on airplanes or trains; reconcile seamlessly on reconnection.
+:::
+:::card(title="Zero Locking", icon="⚡")
+No centralized server lock contention or file blocking.
+:::
+:::
 `,
   },
   launch: {
@@ -111,21 +138,29 @@ The fastest way to build slides.
 
 ---
 
-## 🎨 30+ Designer Themes
-- **Nord** • Frost blue minimalism
-- **Midnight** • Deep dark obsidian
-- **Paper** • Editorial serif aesthetic
-- **Neon** • Vibrant cybernetic contrast
-- **Sunset** • Warm dusk gradients
+## 🎨 Built for High-Stakes Delivery
+
+:::grid(cols=3)
+:::card(title="AI Copilot", icon="🤖")
+Generate complete multi-slide keynotes with Nemotron 3.5 MoE.
+:::
+:::card(title="Presenter Pro", icon="🎙️")
+Dual-screen cockpit with live timer, notes, and next slide view.
+:::
+:::card(title="Mobile Remote", icon="📱")
+Advance slides and read talking cues directly on your phone.
+:::
+:::
 
 ---
 
-## 🛠️ Complete Feature Matrix
-- [x] Split-pane CodeMirror 6 editor
-- [x] Fullscreen presentation mode
-- [x] Tokenized share links & collaborator roles
-- [x] Offline-first with IndexedDB persistence
-- [x] Desktop app with vector PDF export
+## 📊 Performance Benchmarks
+
+:::grid(cols=3)
+:::metric(value="< 12ms", label="Render P99", sub="Sub-frame visual update")
+:::metric(value="100%", label="Offline Ready", sub="IndexedDB storage")
+:::metric(value="4K/60", label="Smooth Canvas", sub="Hardware accelerated")
+:::
 
 ---
 

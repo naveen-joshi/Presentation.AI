@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import type { Deck, DeckRole } from "@/lib/types";
-import { MarkdownEditor } from "./MarkdownEditor";
+import { MarkdownEditor, type MarkdownEditorHandle } from "./MarkdownEditor";
 import { PreviewPane } from "./PreviewPane";
 import { SettingsPanel } from "./SettingsPanel";
 import { ShareModal } from "./ShareModal";
@@ -11,6 +11,7 @@ import { SaveTemplateModal } from "./SaveTemplateModal";
 import { CollabBar } from "./CollabBar";
 import { AiGenerateModal } from "./AiGenerateModal";
 import { AiCopilotBar } from "./AiCopilotBar";
+import { EditorToolbar } from "./EditorToolbar";
 import { updateDeckMarkdown, updateDeck } from "@/lib/actions/deck-actions";
 
 interface EditorShellProps {
@@ -39,6 +40,7 @@ export function EditorShell({
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [showAiModal, setShowAiModal] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "idle">("idle");
+  const editorRef = useRef<MarkdownEditorHandle>(null);
 
   // Extract title from first heading
   const extractTitle = useCallback((md: string) => {
@@ -278,15 +280,20 @@ export function EditorShell({
 
       {/* Editor + Preview split */}
       <div className="flex flex-1 min-h-0">
-        {/* Markdown editor with AI Copilot Bar */}
+        {/* Markdown editor with AI Copilot Bar and Editing Toolbar */}
         <div className="flex-1 min-w-0 border-r border-[var(--border)] flex flex-col">
           <AiCopilotBar
             onTransform={handleTransformSlide}
             onOpenGenerator={() => setShowAiModal(true)}
             disabled={!access.canEdit}
           />
+          <EditorToolbar
+            editorRef={editorRef}
+            disabled={!access.canEdit}
+          />
           <div className="flex-1 min-h-0">
             <MarkdownEditor
+              ref={editorRef}
               initialValue={markdown}
               readOnly={!access.canEdit}
               onChange={(val) => {

@@ -119,6 +119,50 @@ function parseImageDirective(title: string | undefined | null): {
   return { position, opacity };
 }
 
+function preprocessDirectives(md: string): string {
+  let res = md;
+
+  // 1. Metric: :::metric(value="+340%", label="Growth", sub="vs Q3")
+  res = res.replace(/:::metric\((.*?)\)/g, (_, args: string) => {
+    const valueMatch = args.match(/value="([^"]*)"/);
+    const labelMatch = args.match(/label="([^"]*)"/);
+    const subMatch = args.match(/sub="([^"]*)"/);
+    const val = valueMatch ? valueMatch[1] : "";
+    const lbl = labelMatch ? labelMatch[1] : "";
+    const sub = subMatch ? subMatch[1] : "";
+    return `<div class="slide-metric"><div class="metric-val">${val}</div><div class="metric-label">${lbl}</div>${sub ? `<div class="metric-sub">${sub}</div>` : ""}</div>`;
+  });
+
+  // 2. Callout: :::callout(type="tip") ... :::
+  res = res.replace(/:::callout(?:\((?:type="([^"]*)")?\))?\n([\s\S]*?)\n:::/g, (_, type: string | undefined, content: string) => {
+    const t = type || "tip";
+    const icon = t === "warning" ? "⚠️" : t === "important" ? "⚡" : t === "info" ? "ℹ️" : "💡";
+    return `<div class="slide-callout callout-${t}"><div class="callout-icon">${icon}</div><div class="callout-body">\n\n${content}\n\n</div></div>`;
+  });
+
+  // 3. Card: :::card(title="Title", icon="Icon") ... :::
+  res = res.replace(/:::card\((.*?)\)\n([\s\S]*?)\n:::/g, (_, args: string, content: string) => {
+    const titleMatch = args.match(/title="([^"]*)"/);
+    const iconMatch = args.match(/icon="([^"]*)"/);
+    const title = titleMatch ? titleMatch[1] : "";
+    const icon = iconMatch ? iconMatch[1] : "";
+    return `<div class="slide-card"><div class="slide-card-header">${icon ? `<span class="slide-card-icon">${icon}</span>` : ""}${title ? `<h4 class="slide-card-title">${title}</h4>` : ""}</div><div class="slide-card-body">\n\n${content}\n\n</div></div>`;
+  });
+
+  // 4. Grid: :::grid(cols=3) ... :::
+  res = res.replace(/:::grid(?:\((?:cols=([234]))?\))?\n([\s\S]*?)\n:::/g, (_, cols: string | undefined, content: string) => {
+    const c = cols || "2";
+    return `<div class="slide-grid grid-cols-${c}">\n\n${content}\n\n</div>`;
+  });
+
+  // 5. Terminal: :::terminal(title="bash") ... :::
+  res = res.replace(/:::terminal(?:\((?:title="([^"]*)")?\))?\n([\s\S]*?)\n:::/g, (_, title: string | undefined, content: string) => {
+    return `<div class="slide-terminal"><div class="terminal-header"><span class="terminal-dot red"></span><span class="terminal-dot yellow"></span><span class="terminal-dot green"></span><span class="terminal-title">${title || "terminal"}</span></div><div class="terminal-body">\n\n${content}\n\n</div></div>`;
+  });
+
+  return res;
+}
+
 export function parseSlides(markdown: string): Slide[] {
   // Normalize line endings
   const normalized = markdown.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
@@ -169,8 +213,11 @@ export function parseSlides(markdown: string): Slide[] {
         processedMd = processedMd.replace(item, "");
       }
 
+      // Preprocess rich layout directives (grid, card, metric, callout, terminal)
+      const preprocessed = preprocessDirectives(processedMd.trim());
+
       // Render remaining markdown to HTML
-      slide.html = marked.parse(processedMd.trim()) as string;
+      slide.html = marked.parse(preprocessed) as string;
 
       return slide;
     });
