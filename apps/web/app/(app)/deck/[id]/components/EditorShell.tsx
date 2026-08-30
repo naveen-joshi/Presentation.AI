@@ -39,8 +39,23 @@ export function EditorShell({
   const [showShareModal, setShowShareModal] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [showAiModal, setShowAiModal] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [isExportingPptx, setIsExportingPptx] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "idle">("idle");
   const editorRef = useRef<MarkdownEditorHandle>(null);
+
+  const handleDownloadPptx = async () => {
+    try {
+      setIsExportingPptx(true);
+      const { exportToPptx } = await import("@/lib/export/pptxExport");
+      await exportToPptx(markdown, extractTitle(markdown) || deck.title, theme);
+    } catch (e) {
+      console.error("PPTX export failed:", e);
+    } finally {
+      setIsExportingPptx(false);
+      setShowExportMenu(false);
+    }
+  };
 
   // Extract title from first heading
   const extractTitle = useCallback((md: string) => {
@@ -257,6 +272,78 @@ export function EditorShell({
           >
             <span>🎙️</span> Presenter
           </Link>
+
+          {/* Export Dropdown */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              className="inline-flex items-center gap-1 rounded-md border border-[var(--border)] bg-background px-2.5 py-1 text-xs font-semibold text-foreground hover:bg-surface-2 transition-colors cursor-pointer"
+            >
+              <span>📥</span> Export
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+
+            {showExportMenu && (
+              <div className="absolute top-full right-0 mt-1.5 w-60 rounded-xl border border-[var(--border)] bg-surface p-1.5 shadow-2xl z-50 animate-fade-in space-y-1">
+                <button
+                  type="button"
+                  onClick={handleDownloadPptx}
+                  disabled={isExportingPptx}
+                  className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-surface-2 text-xs flex items-center gap-2 text-foreground cursor-pointer disabled:opacity-50"
+                >
+                  <span>📊</span>
+                  <div>
+                    <div className="font-semibold">{isExportingPptx ? "Exporting PPTX..." : "PowerPoint (.pptx)"}</div>
+                    <div className="text-[10px] text-[var(--text-secondary)]">Native editable PowerPoint file</div>
+                  </div>
+                </button>
+
+                <Link
+                  href={`/api/deck/${deck.id}/export?format=html`}
+                  download
+                  onClick={() => setShowExportMenu(false)}
+                  className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-surface-2 text-xs flex items-center gap-2 text-foreground cursor-pointer"
+                >
+                  <span>🌐</span>
+                  <div>
+                    <div className="font-semibold">Standalone HTML</div>
+                    <div className="text-[10px] text-[var(--text-secondary)]">Single self-contained file</div>
+                  </div>
+                </Link>
+
+                <Link
+                  href={`/api/deck/${deck.id}/export?format=md`}
+                  download
+                  onClick={() => setShowExportMenu(false)}
+                  className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-surface-2 text-xs flex items-center gap-2 text-foreground cursor-pointer"
+                >
+                  <span>📄</span>
+                  <div>
+                    <div className="font-semibold">Markdown (.md)</div>
+                    <div className="text-[10px] text-[var(--text-secondary)]">Raw markdown with notes</div>
+                  </div>
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowExportMenu(false);
+                    window.print();
+                  }}
+                  className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-surface-2 text-xs flex items-center gap-2 text-foreground cursor-pointer"
+                >
+                  <span>🖨️</span>
+                  <div>
+                    <div className="font-semibold">Print / Vector PDF</div>
+                    <div className="text-[10px] text-[var(--text-secondary)]">Browser print preview</div>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Present */}
           <Link

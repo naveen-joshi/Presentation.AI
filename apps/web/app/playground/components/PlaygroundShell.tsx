@@ -339,7 +339,22 @@ export function PlaygroundShell() {
     if (newTheme) setTheme(newTheme);
   };
 
+  const [isExportingPptx, setIsExportingPptx] = useState(false);
+
   // Downloads
+  const handleDownloadPptx = async () => {
+    try {
+      setIsExportingPptx(true);
+      const { exportToPptx } = await import("@/lib/export/pptxExport");
+      await exportToPptx(markdown, extractTitle(markdown), theme);
+    } catch (e) {
+      console.error("PPTX export failed:", e);
+    } finally {
+      setIsExportingPptx(false);
+      setShowExportMenu(false);
+    }
+  };
+
   const handleDownloadHtml = () => {
     const blob = new Blob([fullHtml], { type: "text/html" });
     const url = URL.createObjectURL(blob);
@@ -531,7 +546,20 @@ export function PlaygroundShell() {
               </button>
 
               {showExportMenu && (
-                <div className="absolute top-full right-0 mt-1.5 w-56 rounded-xl border border-[var(--border)] bg-surface p-1.5 shadow-2xl z-50 animate-fade-in space-y-1">
+                <div className="absolute top-full right-0 mt-1.5 w-60 rounded-xl border border-[var(--border)] bg-surface p-1.5 shadow-2xl z-50 animate-fade-in space-y-1">
+                  <button
+                    type="button"
+                    onClick={handleDownloadPptx}
+                    disabled={isExportingPptx}
+                    className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-surface-2 text-xs flex items-center gap-2 text-foreground cursor-pointer disabled:opacity-50"
+                  >
+                    <span>📊</span>
+                    <div>
+                      <div className="font-semibold">{isExportingPptx ? "Exporting PPTX..." : "PowerPoint (.pptx)"}</div>
+                      <div className="text-[10px] text-[var(--text-secondary)]">Native editable Microsoft PowerPoint</div>
+                    </div>
+                  </button>
+
                   <button
                     type="button"
                     onClick={handleDownloadHtml}
