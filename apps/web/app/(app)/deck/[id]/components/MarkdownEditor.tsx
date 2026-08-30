@@ -9,39 +9,51 @@ import { keymap } from "@codemirror/view";
 import { indentWithTab } from "@codemirror/commands";
 
 /**
- * Minimal light theme matching the app's design tokens.
+ * App theme matching the app's design tokens and light/dark modes.
  */
 const appTheme = EditorView.theme({
   "&": {
     fontSize: "14px",
     fontFamily: "var(--font-geist-mono, 'JetBrains Mono', monospace)",
     height: "100%",
+    color: "var(--foreground)",
+    backgroundColor: "var(--background)",
   },
   ".cm-content": {
     padding: "16px 20px",
     caretColor: "var(--brand-500)",
+    color: "var(--foreground)",
+  },
+  ".cm-line": {
+    color: "var(--foreground)",
   },
   ".cm-focused": {
     outline: "none",
   },
   ".cm-gutters": {
     background: "var(--surface)",
-    border: "none",
+    borderRight: "1px solid var(--border)",
     color: "var(--text-tertiary)",
     paddingLeft: "8px",
+    paddingRight: "8px",
   },
   ".cm-activeLineGutter": {
-    background: "transparent",
-    color: "var(--text-secondary)",
+    background: "var(--surface-2)",
+    color: "var(--text-primary)",
+    fontWeight: "600",
   },
   ".cm-activeLine": {
-    background: "var(--brand-50)",
+    backgroundColor: "rgba(99, 102, 241, 0.08) !important",
+    color: "inherit !important",
   },
   ".cm-selectionMatch": {
-    background: "var(--brand-100)",
+    backgroundColor: "rgba(99, 102, 241, 0.18)",
   },
   "&.cm-focused .cm-cursor": {
     borderLeftColor: "var(--brand-500)",
+  },
+  "&.cm-focused .cm-selectionBackground, ::selection": {
+    backgroundColor: "rgba(99, 102, 241, 0.25) !important",
   },
   ".cm-scroller": {
     overflow: "auto",

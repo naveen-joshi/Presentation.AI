@@ -31,82 +31,102 @@ export function AiCopilotBar({
   };
 
   return (
-    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-surface/80 border-b border-[var(--border)] text-xs overflow-x-auto shrink-0">
-      <button
-        type="button"
-        onClick={onOpenGenerator}
-        disabled={disabled}
-        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 text-white font-semibold text-[11px] shadow-xs transition-all disabled:opacity-50 cursor-pointer shrink-0"
-      >
-        <span>✨</span> AI Generator
-      </button>
-
-      <span className="text-[var(--border)]">|</span>
-      <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] tracking-wider">
-        Slide AI:
-      </span>
-
-      <button
-        type="button"
-        onClick={() => handleAction("punchy")}
-        disabled={disabled || isProcessing}
-        className="px-2 py-1 rounded hover:bg-surface-2 text-[var(--text-secondary)] hover:text-foreground transition-colors disabled:opacity-50 cursor-pointer shrink-0"
-        title="Make current slide concise and high-impact"
-      >
-        ⚡ Make Punchy
-      </button>
-
-      <button
-        type="button"
-        onClick={() => handleAction("summarize")}
-        disabled={disabled || isProcessing}
-        className="px-2 py-1 rounded hover:bg-surface-2 text-[var(--text-secondary)] hover:text-foreground transition-colors disabled:opacity-50 cursor-pointer shrink-0"
-        title="Summarize into 3 key takeaways"
-      >
-        📝 Summarize
-      </button>
-
-      <button
-        type="button"
-        onClick={() => handleAction("generate-notes")}
-        disabled={disabled || isProcessing}
-        className="px-2 py-1 rounded hover:bg-surface-2 text-[var(--text-secondary)] hover:text-foreground transition-colors disabled:opacity-50 cursor-pointer shrink-0"
-        title="Generate speaker notes comments"
-      >
-        🎙️ Add Notes
-      </button>
-
-      <div className="relative inline-block text-left">
+    <div className="flex items-center justify-between px-3 py-1.5 bg-surface/90 border-b border-[var(--border)] text-xs select-none shrink-0 gap-2">
+      {/* Left: AI Generation trigger */}
+      <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={() => setShowTranslateMenu(!showTranslateMenu)}
-          disabled={disabled || isProcessing}
-          className="px-2 py-1 rounded hover:bg-surface-2 text-[var(--text-secondary)] hover:text-foreground transition-colors disabled:opacity-50 cursor-pointer inline-flex items-center gap-1 shrink-0"
+          onClick={onOpenGenerator}
+          disabled={disabled}
+          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 text-white font-bold text-[11px] shadow-sm transition-all disabled:opacity-50 cursor-pointer shrink-0"
         >
-          🌐 Translate ▾
+          <span>✨</span> Generate with AI
         </button>
 
-        {showTranslateMenu && (
-          <div className="absolute left-0 top-full mt-1 w-32 rounded-lg bg-surface border border-[var(--border)] py-1 shadow-xl z-50 animate-fade-in">
-            {["Spanish", "French", "German", "Japanese", "Hindi", "Chinese"].map((lang) => (
-              <button
-                key={lang}
-                type="button"
-                onClick={() => handleAction("translate", lang)}
-                className="w-full text-left px-3 py-1.5 text-xs text-foreground hover:bg-brand-50 dark:hover:bg-brand-900/30 transition-colors cursor-pointer"
-              >
-                {lang}
-              </button>
-            ))}
+        <div className="h-4 w-px bg-[var(--border)] hidden sm:block" />
+
+        {/* Action Pills Cluster */}
+        <div className="flex items-center gap-1 p-0.5 bg-background rounded-lg border border-[var(--border)]">
+          <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider px-2 py-0.5">
+            Slide Copilot
+          </span>
+
+          <button
+            type="button"
+            onClick={() => handleAction("punchy")}
+            disabled={disabled || isProcessing}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium text-[var(--text-secondary)] hover:text-foreground hover:bg-surface-2 transition-all disabled:opacity-50 cursor-pointer"
+            title="Make current slide punchy and concise"
+          >
+            <span>⚡</span> Punchy
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleAction("summarize")}
+            disabled={disabled || isProcessing}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium text-[var(--text-secondary)] hover:text-foreground hover:bg-surface-2 transition-all disabled:opacity-50 cursor-pointer"
+            title="Summarize into 3 key takeaways"
+          >
+            <span>📝</span> Summarize
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleAction("expand")}
+            disabled={disabled || isProcessing}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium text-[var(--text-secondary)] hover:text-foreground hover:bg-surface-2 transition-all disabled:opacity-50 cursor-pointer"
+            title="Expand with examples and detail"
+          >
+            <span>🔍</span> Expand
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleAction("generate-notes")}
+            disabled={disabled || isProcessing}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium text-[var(--text-secondary)] hover:text-foreground hover:bg-surface-2 transition-all disabled:opacity-50 cursor-pointer"
+            title="Generate private speaker script"
+          >
+            <span>🎙️</span> Notes
+          </button>
+
+          <div className="relative inline-block text-left">
+            <button
+              type="button"
+              onClick={() => setShowTranslateMenu(!showTranslateMenu)}
+              disabled={disabled || isProcessing}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium text-[var(--text-secondary)] hover:text-foreground hover:bg-surface-2 transition-all disabled:opacity-50 cursor-pointer"
+            >
+              <span>🌐</span> Translate
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+
+            {showTranslateMenu && (
+              <div className="absolute left-0 top-full mt-1 w-36 rounded-xl bg-surface border border-[var(--border)] p-1 shadow-xl z-50 animate-fade-in space-y-0.5">
+                {["Spanish", "French", "German", "Japanese", "Hindi", "Chinese"].map((lang) => (
+                  <button
+                    key={lang}
+                    type="button"
+                    onClick={() => handleAction("translate", lang)}
+                    className="w-full text-left px-2.5 py-1.5 text-xs text-foreground hover:bg-surface-2 rounded-md transition-colors cursor-pointer"
+                  >
+                    {lang}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       {isProcessing && (
-        <span className="text-[11px] text-brand-500 font-medium animate-pulse ml-2 flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-brand-500 animate-ping" />
-          AI Working…
-        </span>
+        <div className="flex items-center gap-1.5 text-[11px] text-brand-600 font-semibold animate-pulse">
+          <span className="w-2.5 h-2.5 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
+          Transforming…
+        </div>
       )}
     </div>
   );
