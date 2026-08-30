@@ -1,0 +1,12 @@
+{
+  "name": "collab-lab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --experimental-strip-types demo.ts"
+  },
+  "dependencies": {
+    "yjs": "^13.6.23"
+  }
+}

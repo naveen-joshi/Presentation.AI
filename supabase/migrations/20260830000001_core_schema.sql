@@ -1,7 +1,10 @@
 -- Presentation.AI core schema
 -- profiles, decks, deck_collaborators, share_links, templates, yjs_updates + RLS
+--
+-- Ordering matters: tables are created first because Postgres validates
+-- SQL-language function bodies at creation time.
 
--- ── Helpers ─────────────────────────────────────────────────────────────────
+-- ── Trigger helpers ─────────────────────────────────────────────────────────
 
 create or replace function public.set_updated_at()
 returns trigger language plpgsql as $$
@@ -24,54 +27,6 @@ begin
   on conflict (id) do nothing;
   return new;
 end $$;
-
--- Access helpers used by RLS policies. All are `security definer` so the
--- policies can read related tables without recursing through their RLS.
-create or replace function public.deck_owner_id(p_deck uuid)
-returns uuid language sql stable security definer set search_path = public as $$
-  select owner_id from public.decks where id = p_deck;
-$$;
-
-create or replace function public.is_deck_owner(p_deck uuid)
-returns boolean language sql stable security definer set search_path = public as $$
-  select exists (
-    select 1 from public.decks where id = p_deck and owner_id = auth.uid()
-  );
-$$;
-
-create or replace function public.deck_role(p_deck uuid)
-returns text language sql stable security definer set search_path = public as $$
-  select role from public.deck_collaborators
-  where deck_id = p_deck and user_id = auth.uid();
-$$;
-
-create or replace function public.can_read_deck(p_deck uuid)
-returns boolean language sql stable security definer set search_path = public as $$
-  select exists (
-    select 1 from public.decks
-    where id = p_deck
-      and (
-        owner_id = auth.uid()
-        or visibility in ('public', 'unlisted')
-        or exists (
-          select 1 from public.deck_collaborators
-          where deck_id = p_deck and user_id = auth.uid()
-        )
-      )
-  );
-$$;
-
-create or replace function public.can_edit_deck(p_deck uuid)
-returns boolean language sql stable security definer set search_path = public as $$
-  select exists (
-    select 1 from public.decks
-    where id = p_deck and owner_id = auth.uid()
-  )
-  or exists (
-    select 1 from public.deck_collaborators
-    where deck_id = p_deck and user_id = auth.uid() and role = 'editor'
-  );
-$$;
 
 -- ── Tables ──────────────────────────────────────────────────────────────────
 
@@ -158,6 +113,56 @@ create table public.yjs_updates (
   created_at timestamptz not null default now()
 );
 create index yjs_updates_deck_idx on public.yjs_updates (deck_id, id);
+
+-- ── Access helpers (RLS) ────────────────────────────────────────────────────
+-- All are `security definer` so policies can read related tables without
+-- recursing through their RLS.
+
+create or replace function public.deck_owner_id(p_deck uuid)
+returns uuid language sql stable security definer set search_path = public as $$
+  select owner_id from public.decks where id = p_deck;
+$$;
+
+create or replace function public.is_deck_owner(p_deck uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.decks where id = p_deck and owner_id = auth.uid()
+  );
+$$;
+
+create or replace function public.deck_role(p_deck uuid)
+returns text language sql stable security definer set search_path = public as $$
+  select role from public.deck_collaborators
+  where deck_id = p_deck and user_id = auth.uid();
+$$;
+
+create or replace function public.can_read_deck(p_deck uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.decks
+    where id = p_deck
+      and (
+        owner_id = auth.uid()
+        or visibility in ('public', 'unlisted')
+        or exists (
+          select 1 from public.deck_collaborators
+          where deck_id = p_deck and user_id = auth.uid()
+        )
+      )
+  );
+$$;
+
+create or replace function public.can_edit_deck(p_deck uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.decks
+    where id = p_deck and owner_id = auth.uid()
+  )
+  or exists (
+    select 1 from public.deck_collaborators
+    where deck_id = p_deck and user_id = auth.uid() and role = 'editor'
+  );
+$$;
 
 -- ── Triggers ────────────────────────────────────────────────────────────────
 

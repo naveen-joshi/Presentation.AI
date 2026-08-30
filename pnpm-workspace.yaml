@@ -1,8 +1,15 @@
 packages:
   - "packages/*"
   - "apps/*"
+  - "experiments/*"
+
+allowBuilds:
+  electron: true
+  unrs-resolver: true
 
 onlyBuiltDependencies:
+  - electron
   - esbuild
   - sharp
   - "@tailwindcss/oxide"
+  - unrs-resolver
