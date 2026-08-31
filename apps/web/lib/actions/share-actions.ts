@@ -131,7 +131,7 @@ export async function getCollaborators(deckId: string): Promise<Collaborator[]> 
     .eq("deck_id", deckId);
 
   if (error) throw error;
-  return (data ?? []).map((row) => {
+  return (data ?? []).map((row: Record<string, unknown>) => {
     const r = row as unknown as {
       deck_id: string;
       user_id: string;

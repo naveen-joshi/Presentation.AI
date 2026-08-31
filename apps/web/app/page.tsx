@@ -3,10 +3,14 @@ import { createClient } from "@/lib/supabase/server";
 import { LivePlayground } from "./components/LivePlayground";
 
 export default async function LandingPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user = null;
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.auth.getUser();
+    user = data?.user ?? null;
+  } catch (err) {
+    console.warn("LandingPage user check fallback:", err);
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
