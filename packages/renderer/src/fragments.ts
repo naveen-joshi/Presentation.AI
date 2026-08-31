@@ -36,7 +36,7 @@ export const FRAGMENT_CSS = `/* ── Fragments / Incremental Reveals ───
 export const FRAGMENT_RUNTIME = `(function () {
   window.deckrunPrepareFragments = function (root, allVisible) {
     if (!root) return;
-    var markers = root.querySelectorAll('.deckrun-fragment-marker');
+    var markers = root.querySelectorAll('.deckrun-fragment-marker, .slide-fragment');
     for (var i = 0; i < markers.length; i++) {
       var marker = markers[i];
       var parent = marker.parentElement;

@@ -97,11 +97,104 @@ export async function exportToPptx(
       slide.addNotes(parsedSlide.notes.trim());
     }
 
+    // Custom background override
+    if (parsedSlide?.bg) {
+      const bg = parsedSlide.bg.toLowerCase();
+      if (bg.startsWith("#")) {
+        slide.background = { color: bg.replace("#", "") };
+      } else if (bg.includes("indigo") || bg.includes("dark")) {
+        slide.background = { color: "0F172A" };
+      } else if (bg.includes("sunset")) {
+        slide.background = { color: "1F1235" };
+      } else if (bg.includes("aurora") || bg.includes("ocean")) {
+        slide.background = { color: "022C22" };
+      }
+    }
+
+    // Top Header Bar
+    const headerMatch = rawSlide.match(/:::header\((.*?)\)/);
+    if (headerMatch) {
+      const args = headerMatch[1];
+      const tMatch = args.match(/title="([^"]*)"/);
+      const cMatch = args.match(/category="([^"]*)"/);
+      const hTitle = tMatch ? tMatch[1] : "";
+      const hCat = cMatch ? cMatch[1] : "";
+      if (hTitle || hCat) {
+        slide.addText(`${hTitle} ${hCat ? ` • ${hCat}` : ""}`.trim(), {
+          x: 0.8,
+          y: 0.25,
+          w: 11.5,
+          h: 0.35,
+          fontSize: 10,
+          color: palette.subtext,
+          bold: true,
+        });
+      }
+    }
+
+    // Watermark Top-Right Pill
+    const watermarkMatch = rawSlide.match(/:::watermark\((.*?)\)/) || rawSlide.match(/<!--\s*watermark:\s*([^>]+?)\s*-->/i);
+    if (watermarkMatch) {
+      const wText = watermarkMatch[1].includes('"') ? watermarkMatch[1].match(/text="([^"]*)"/)?.[1] || "CONFIDENTIAL" : watermarkMatch[1].trim();
+      slide.addText(wText, {
+        x: 9.8,
+        y: 0.25,
+        w: 2.5,
+        h: 0.35,
+        fontSize: 9,
+        color: "F43F5E",
+        bold: true,
+        align: "center",
+        shape: pres.ShapeType.rect,
+        fill: { color: "2D1215" },
+        line: { color: "F43F5E", width: 1 },
+      });
+    }
+
     const lines = rawSlide.split("\n");
     let title = "";
     const bulletItems: Array<{ text: string; options?: pptxgen.TextPropsOptions }> = [];
     const paragraphs: string[] = [];
     const metrics: Array<{ value: string; label: string; sub?: string }> = [];
+    let chartInfo: { type: string; title: string; labels: string[]; series: Array<{ name: string; values: number[] }> } | null = null;
+
+    // Check for chart block in raw slide
+    const chartMatch = rawSlide.match(/:::chart(?:\((.*?)\))?\n([\s\S]*?)\n:::/);
+    if (chartMatch) {
+      const a = chartMatch[1] || "";
+      const content = chartMatch[2] || "";
+      const typeMatch = a.match(/type="([^"]*)"/);
+      const titleMatch = a.match(/title="([^"]*)"/);
+      const cType = typeMatch ? typeMatch[1] : "bar";
+      const cTitle = titleMatch ? titleMatch[1] : "";
+
+      const cLines = content.split("\n").map((l) => l.trim()).filter(Boolean);
+      let cLabels: string[] = [];
+      const cSeries: Array<{ name: string; values: number[] }> = [];
+
+      for (const cl of cLines) {
+        if (cl.toLowerCase().startsWith("labels:")) {
+          cLabels = cl.slice(7).split(",").map((s) => s.trim()).filter(Boolean);
+        } else if (cl.toLowerCase().startsWith("series:")) {
+          const m = cl.slice(7).match(/(.*?)\s*\[(.*?)\]/);
+          if (m) {
+            const sName = m[1].trim() || `Series ${cSeries.length + 1}`;
+            const sData = m[2].split(",").map((v) => parseFloat(v.trim()) || 0);
+            cSeries.push({ name: sName, values: sData });
+          }
+        } else if (cl.includes(":")) {
+          const [k, v] = cl.split(":");
+          cLabels.push(k.trim());
+          const num = parseFloat(v.trim()) || 0;
+          if (cSeries.length === 0) cSeries.push({ name: "Value", values: [] });
+          cSeries[0].values.push(num);
+        }
+      }
+
+      if (cSeries.length > 0 && cLabels.length > 0) {
+        chartInfo = { type: cType, title: cTitle, labels: cLabels, series: cSeries };
+      }
+    }
 
     // Extract title, bullets, and directives
     for (const rawLine of lines) {
@@ -144,7 +237,7 @@ export async function exportToPptx(
 
       // Bullets (- or *)
       if (/^[-*]\s+/.test(line)) {
-        const bulletText = line.replace(/^[-*]\s+/, "").replace(/\*\*/g, "");
+        const bulletText = line.replace(/^[-*]\s+/, "").replace(/\{v?-?click\}/gi, "").replace(/\*\*/g, "");
         bulletItems.push({
           text: bulletText,
           options: {
@@ -159,7 +252,7 @@ export async function exportToPptx(
 
       // Numbered List (1., 2.)
       if (/^\d+\.\s+/.test(line)) {
-        const numText = line.replace(/^\d+\.\s+/, "").replace(/\*\*/g, "");
+        const numText = line.replace(/^\d+\.\s+/, "").replace(/\{v?-?click\}/gi, "").replace(/\*\*/g, "");
         bulletItems.push({
           text: numText,
           options: {
@@ -173,7 +266,7 @@ export async function exportToPptx(
       }
 
       // Regular paragraph
-      paragraphs.push(line.replace(/\*\*/g, ""));
+      paragraphs.push(line.replace(/\{v?-?click\}/gi, "").replace(/\*\*/g, ""));
     }
 
     const isTitleSlide = index === 0;
@@ -219,8 +312,44 @@ export async function exportToPptx(
         });
       }
 
-      // Render Metrics if any
-      if (metrics.length > 0) {
+      // Render Native PowerPoint Chart if present
+      if (chartInfo) {
+        let pptxChartType = pres.ChartType.bar;
+        if (chartInfo.type === "line" || chartInfo.type === "area") pptxChartType = pres.ChartType.line;
+        else if (chartInfo.type === "donut" || chartInfo.type === "pie") pptxChartType = pres.ChartType.doughnut;
+
+        const pptxData = chartInfo.series.map((s) => ({
+          name: s.name,
+          labels: chartInfo!.labels,
+          values: s.values,
+        }));
+
+        try {
+          slide.addChart(pptxChartType, pptxData, {
+            x: 0.8,
+            y: 1.6,
+            w: 11.5,
+            h: 4.8,
+            showTitle: Boolean(chartInfo.title),
+            title: chartInfo.title || undefined,
+            titleColor: palette.accent,
+            titleFontSize: 16,
+            showLegend: chartInfo.series.length > 1,
+            legendPos: "t",
+          });
+        } catch {
+          // Fallback to text box if chart fails
+          slide.addText(`Chart: ${chartInfo.title}\n${chartInfo.labels.join(", ")}`, {
+            x: 0.8,
+            y: 1.8,
+            w: 11.5,
+            h: 4.5,
+            fontSize: 16,
+            color: palette.text,
+          });
+        }
+      } else if (metrics.length > 0) {
+        // Render Metrics if any
         const metricWidth = 11.0 / metrics.length;
         metrics.forEach((m, mIdx) => {
           const mX = 0.8 + mIdx * metricWidth;
@@ -270,35 +399,52 @@ export async function exportToPptx(
         });
       }
 
-      // Render Bullets / Body Content
-      if (bulletItems.length > 0) {
-        const bodyY = metrics.length > 0 ? 4.3 : 1.7;
-        const bodyH = metrics.length > 0 ? 2.5 : 5.0;
+      // Render Bullets / Body Content if no chart
+      if (!chartInfo) {
+        if (bulletItems.length > 0) {
+          const bodyY = metrics.length > 0 ? 4.3 : 1.7;
+          const bodyH = metrics.length > 0 ? 2.5 : 5.0;
 
-        slide.addText(bulletItems, {
-          x: 0.8,
-          y: bodyY,
-          w: 11.5,
-          h: bodyH,
-          valign: "top",
-          lineSpacing: 28,
-        });
-      } else if (paragraphs.length > 0 && metrics.length === 0) {
-        slide.addText(paragraphs.join("\n\n"), {
-          x: 0.8,
-          y: 1.8,
-          w: 11.5,
-          h: 4.8,
-          fontSize: 16,
-          color: palette.text,
-          valign: "top",
-          lineSpacing: 24,
-        });
+          slide.addText(bulletItems, {
+            x: 0.8,
+            y: bodyY,
+            w: 11.5,
+            h: bodyH,
+            valign: "top",
+            lineSpacing: 28,
+          });
+        } else if (paragraphs.length > 0 && metrics.length === 0) {
+          slide.addText(paragraphs.join("\n\n"), {
+            x: 0.8,
+            y: 1.8,
+            w: 11.5,
+            h: 4.8,
+            fontSize: 16,
+            color: palette.text,
+            valign: "top",
+            lineSpacing: 24,
+          });
+        }
       }
     }
 
-    // Footer
-    slide.addText(`Presentation.AI  •  Slide ${index + 1}`, {
+    // Footer & Copyright
+    const footerMatch = rawSlide.match(/:::footer\((.*?)\)/);
+    let footerText = `Presentation.AI  •  Slide ${index + 1}`;
+    if (footerMatch) {
+      const args = footerMatch[1];
+      const lMatch = args.match(/left="([^"]*)"/);
+      const rMatch = args.match(/right="([^"]*)"/);
+      const cMatch = args.match(/center="([^"]*)"/);
+      const lText = lMatch ? lMatch[1] : "";
+      const cText = cMatch ? cMatch[1] : "";
+      const rText = rMatch
+        ? rMatch[1].replace("%slide%", `${index + 1}`).replace("%total%", `${rawSections.length}`)
+        : `Slide ${index + 1}`;
+      footerText = [lText, cText, rText].filter(Boolean).join("   •   ");
+    }
+
+    slide.addText(footerText, {
       x: 0.8,
       y: 6.8,
       w: 11.5,

@@ -97,26 +97,40 @@ export function EditorShell({
     [deck.id, access.canEdit]
   );
 
+  const currentSlideIndex = 0;
+
   const handleTransformSlide = async (
     action: "punchy" | "summarize" | "expand" | "generate-notes" | "translate",
     targetLanguage?: string
   ) => {
     if (!access.canEdit) return;
     try {
+      const slideSections = markdown
+        .replace(/\r\n/g, "\n")
+        .replace(/\r/g, "\n")
+        .split(/\n[ \t]*---[ \t]*\n/);
+
+      const targetIndex = Math.min(Math.max(0, currentSlideIndex), slideSections.length - 1);
+      const currentSlideMarkdown = slideSections[targetIndex] || markdown;
+
       const res = await fetch("/api/ai/transform", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          markdown,
+          markdown: currentSlideMarkdown,
           action,
           targetLanguage,
         }),
       });
+
       if (res.ok) {
         const data = await res.json();
         if (data.result) {
-          setMarkdown(data.result);
-          saveMarkdown(data.result);
+          slideSections[targetIndex] = data.result;
+          const updatedMarkdown = slideSections.join("\n\n---\n\n");
+          setMarkdown(updatedMarkdown);
+          editorRef.current?.setValue(updatedMarkdown);
+          saveMarkdown(updatedMarkdown);
         }
       }
     } catch (e) {

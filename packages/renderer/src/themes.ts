@@ -101,6 +101,12 @@ export const FONTS: Record<string, FontFace> = {
   firaCode:      { param: "Fira+Code:wght@400;500;600;700",                            stack: `'Fira Code', ${MONO}`, kind: "mono" },
   spaceMono:     { param: "Space+Mono:ital,wght@0,400;0,700;1,400",                    stack: `'Space Mono', ${MONO}`, kind: "mono" },
   sourceCodePro: { param: "Source+Code+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400",    stack: `'Source Code Pro', ${MONO}`, kind: "mono" },
+  plusJakarta:   { param: "Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400", stack: `'Plus Jakarta Sans', ${SANS}`, kind: "sans" },
+  poppins:       { param: "Poppins:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400",    stack: `'Poppins', ${SANS}`, kind: "sans" },
+  montserrat:    { param: "Montserrat:ital,wght@0,400;0,600;0,700;0,800;0,900;1,400", stack: `'Montserrat', ${SANS}`, kind: "sans" },
+  roboto:        { param: "Roboto:ital,wght@0,400;0,500;0,700;0,900;1,400",            stack: `'Roboto', ${SANS}`, kind: "sans" },
+  cormorant:     { param: "Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400",      stack: `'Cormorant Garamond', ${SERIF}`, kind: "serif" },
+  cinzel:        { param: "Cinzel:wght@400;600;700;800;900",                           stack: `'Cinzel', ${SERIF}`, kind: "serif" },
 };
 
 /**

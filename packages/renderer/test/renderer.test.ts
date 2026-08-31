@@ -54,6 +54,102 @@ Inline math $a^2 + b^2 = c^2$ here.
     expect(slides[1].html).toMatch(/data-display="false"/);
   });
 
+  test("parses chart, bento, timeline, and badge directives into rich SVG and HTML components", () => {
+    const md = `# Quarterly Review
+:::badge(text="Live Beta", color="emerald", pulse=true)
+
+---
+
+## Performance
+:::chart(type="bar", title="Quarterly Growth ($M)")
+labels: Q1, Q2, Q3, Q4
+series: 2025 [25, 45, 70, 95]
+:::
+
+---
+
+## Strategy
+:::bento
+:::box(span=2, bg="gradient")
+### Bento Title
+:::
+:::box(span=1)
+### Metric
+:::
+:::
+`;
+    const slides = parseSlides(md);
+    expect(slides.length).toBe(3);
+    // Slide 1 has badge
+    expect(slides[0].html).toContain('class="slide-badge badge-emerald"');
+    // Slide 2 has rendered chart SVG and NOT a raw pre/code block
+    expect(slides[1].html).toContain('class="slide-chart-box"');
+    expect(slides[1].html).toContain('class="slide-chart-svg"');
+    expect(slides[1].html).toContain('<rect');
+    expect(slides[1].html).not.toContain('&lt;svg');
+    // Slide 3 has bento grid
+    expect(slides[2].html).toContain('class="slide-bento-grid"');
+    expect(slides[2].html).toContain('class="bento-box col-span-2');
+  });
+
+  test("parses dynamic text colors, background overlays, layout masters, headers, and footers", () => {
+    const md = `:::header(title="Company All-Hands", category="Strategic Update", logo="⚡")
+<!-- bg: gradient-dark -->
+:::watermark(text="CONFIDENTIAL")
+
+# Welcome to {gradient:sunset}The Future of Presentations{/gradient}
+Here is {color:emerald}growth in revenue{/color} and a {bg:amber}critical highlight{/bg}.
+
+:::footer(left="© 2026 Presentation.AI", center="Internal Only", right="Slide %slide% of %total%")
+
+---
+
+:::layout(split)
+:::col
+### Left Column Overview
+Detailed operational highlights.
+:::
+:::col
+### Right Column Metric
+:::metric(value="+340%", label="Scale")
+:::
+:::
+:::divider(type="glow")
+`;
+    const slides = parseSlides(md);
+    expect(slides.length).toBe(2);
+
+    // Slide 1 checks
+    expect(slides[0].html).toContain('class="slide-header-bar"');
+    expect(slides[0].html).toContain('class="header-title">Company All-Hands</span>');
+    expect(slides[0].html).toContain('class="slide-bg-layer slide-bg-gradient-dark"');
+    expect(slides[0].html).toContain('class="slide-watermark">CONFIDENTIAL</div>');
+    expect(slides[0].html).toContain('class="slide-text-gradient gradient-sunset">The Future of Presentations</span>');
+    expect(slides[0].html).toContain('class="slide-text-color text-color-emerald">growth in revenue</span>');
+    expect(slides[0].html).toContain('class="slide-text-bg bg-amber">critical highlight</span>');
+    expect(slides[0].html).toContain('class="slide-footer-bar"');
+    expect(slides[0].html).toContain('© 2026 Presentation.AI');
+
+    // Slide 2 checks
+    expect(slides[1].html).toContain('class="slide-layout slide-layout-split"');
+    expect(slides[1].html).toContain('class="slide-layout-col"');
+    expect(slides[1].html).toContain('class="slide-divider divider-glow"');
+  });
+
+  test("parses custom inline fonts and solid hex color styling", () => {
+    const md = `<!-- bg: #0f172a -->
+# {font:Syne}Artistic Title{/font}
+Here is {color:#38bdf8}Sky Blue Text{/color} and {bg:#22c55e}Green Highlight{/bg}.
+`;
+    const slides = parseSlides(md);
+    expect(slides.length).toBe(1);
+    expect(slides[0].bg).toBe("#0f172a");
+    expect(slides[0].html).toContain('class="slide-bg-layer" style="background-color: #0f172a"');
+    expect(slides[0].html).toContain('class="slide-custom-font" style="font-family: \'Syne\', var(--font-display), sans-serif">Artistic Title</span>');
+    expect(slides[0].html).toContain('class="slide-text-color" style="color: #38bdf8">Sky Blue Text</span>');
+    expect(slides[0].html).toContain('class="slide-text-bg" style="background-color: #22c55e">Green Highlight</span>');
+  });
+
   test("parses the example deck fixture", () => {
     const md = readFileSync(join(fixturesDir, "example-2.md"), "utf8");
     const slides = parseSlides(md);
