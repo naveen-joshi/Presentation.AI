@@ -18,6 +18,18 @@ export function AiGenerateModal({
   const [slideCount, setSlideCount] = useState("5");
   const [audience, setAudience] = useState<"general" | "executives" | "developers" | "students" | "investors">("general");
   const [theme, setTheme] = useState("auto");
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [apiKey, setApiKey] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        return localStorage.getItem("ai_api_key") || "";
+      } catch {
+        return "";
+      }
+    }
+    return "";
+  });
+  const [provider, setProvider] = useState<"auto" | "nvidia" | "openai" | "gemini">("auto");
   const [isLoading, setIsLoading] = useState(false);
   const [generatedResult, setGeneratedResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +52,8 @@ export function AiGenerateModal({
           slideCount: Number(slideCount),
           audience,
           theme: theme === "auto" ? undefined : theme,
+          apiKey: apiKey.trim() || undefined,
+          provider: provider !== "auto" ? provider : undefined,
         }),
       });
 
@@ -94,17 +108,42 @@ export function AiGenerateModal({
           {!generatedResult ? (
             <form onSubmit={handleGenerate} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-foreground mb-1.5">
-                  Presentation Topic or Prompt
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-foreground">
+                    Presentation Topic or Prompt
+                  </label>
+                  <span className="text-[11px] text-[var(--text-tertiary)]">Supports 1-word topics or detailed outlines</span>
+                </div>
                 <textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="e.g. Scaling distributed database architectures with raft consensus and zero-downtime migrations..."
-                  rows={4}
+                  placeholder="e.g. Scaling distributed database architectures, AI in healthcare, seed pitch deck, or simply 'sales strategy'..."
+                  rows={3}
                   className="w-full rounded-xl border border-[var(--border)] bg-background px-3.5 py-2.5 text-xs text-foreground placeholder-[var(--text-tertiary)] outline-none focus:border-brand-500 transition-colors resize-none"
                   required
                 />
+
+                {/* Quick Topic Chips */}
+                <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                  <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">Quick ideas:</span>
+                  {[
+                    "🚀 Seed Pitch Deck",
+                    "🤖 Modern AI Architecture",
+                    "📊 Q3 Revenue & Growth",
+                    "🛡️ Zero-Trust Security",
+                    "🧬 Biotech & Healthcare",
+                    "⚡ Product Launch Plan",
+                  ].map((chip) => (
+                    <button
+                      key={chip}
+                      type="button"
+                      onClick={() => setPrompt(chip.slice(3))}
+                      className="px-2 py-0.5 rounded-full bg-surface-2 hover:bg-surface-3 border border-[var(--border)] text-[11px] font-medium text-foreground transition-all cursor-pointer hover:border-brand-500"
+                    >
+                      {chip}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -165,6 +204,56 @@ export function AiGenerateModal({
                     ))}
                   </select>
                 </div>
+              </div>
+
+              {/* Advanced: Custom API Key */}
+              <div className="border-t border-[var(--border)] pt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--text-secondary)] hover:text-foreground cursor-pointer"
+                >
+                  <span>{showAdvanced ? "▼" : "▶"}</span>
+                  <span>⚙️ Advanced: LLM API Key (NVIDIA / OpenAI / Gemini)</span>
+                </button>
+
+                {showAdvanced && (
+                  <div className="mt-2.5 p-3 rounded-xl bg-surface-2 border border-[var(--border)] space-y-2.5 animate-fade-in">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
+                          Provider
+                        </label>
+                        <select
+                          value={provider}
+                          onChange={(e) => setProvider(e.target.value as "auto" | "nvidia" | "openai" | "gemini")}
+                          className="w-full rounded-lg border border-[var(--border)] bg-background px-2.5 py-1.5 text-xs text-foreground outline-none cursor-pointer"
+                        >
+                          <option value="auto">Auto (Environment / Fallback)</option>
+                          <option value="nvidia">NVIDIA NIM (Llama-3.3 / Nemotron)</option>
+                          <option value="openai">OpenAI (GPT-4o-mini)</option>
+                          <option value="gemini">Google Gemini</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
+                          API Key (Saved locally)
+                        </label>
+                        <input
+                          type="password"
+                          value={apiKey}
+                          onChange={(e) => {
+                            setApiKey(e.target.value);
+                            try { localStorage.setItem("ai_api_key", e.target.value); } catch {}
+                          }}
+                          placeholder="nvapi-... or sk-..."
+                          className="w-full rounded-lg border border-[var(--border)] bg-background px-2.5 py-1.5 text-xs text-foreground placeholder-[var(--text-tertiary)] outline-none focus:border-brand-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {error && (
