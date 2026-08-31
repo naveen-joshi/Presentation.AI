@@ -12,7 +12,7 @@ export async function getDecksByOwner(): Promise<Deck[]> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
+  if (!user) return [];
 
   const { data, error } = await supabase
     .from("decks")
@@ -20,7 +20,7 @@ export async function getDecksByOwner(): Promise<Deck[]> {
     .eq("owner_id", user.id)
     .order("updated_at", { ascending: false });
 
-  if (error) throw error;
+  if (error) return [];
   return (data ?? []) as Deck[];
 }
 

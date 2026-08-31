@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { signOut } from "@/lib/actions/auth-actions";
 
+export const dynamic = "force-dynamic";
+
 export default async function AppLayout({
   children,
 }: {

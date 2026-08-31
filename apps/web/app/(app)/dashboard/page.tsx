@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { getDecksByOwner, createDeck, deleteDeck } from "@/lib/actions/deck-actions";
 import { DeckGrid, DashboardActions } from "./components";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Dashboard",
 };

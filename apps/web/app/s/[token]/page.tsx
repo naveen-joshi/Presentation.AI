@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { PresentView } from "@/app/(app)/deck/[id]/present/PresentView";
 import type { Deck, ShareLink } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata(props: {
   params: Promise<{ token: string }>;
 }) {
