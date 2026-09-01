@@ -17,7 +17,7 @@ import {
 } from "../src/presentation-options.js";
 import { richContentFeatures, richContentHead } from "../src/rich-content.js";
 import { lintMarkdown } from "../src/lint.js";
-import { generateHtml } from "../src/generate.js";
+import { generateHtml, renderSlide } from "../src/generate.js";
 import { generatePreviewHtml } from "../src/preview.js";
 import { themeRootCss, themeSwitchableCss } from "../src/themes.js";
 
@@ -122,7 +122,9 @@ Detailed operational highlights.
     // Slide 1 checks
     expect(slides[0].html).toContain('class="slide-header-bar"');
     expect(slides[0].html).toContain('class="header-title">Company All-Hands</span>');
-    expect(slides[0].html).toContain('class="slide-bg-layer slide-bg-gradient-dark"');
+    expect(slides[0].bg).toBe("gradient-dark");
+    const rendered0 = renderSlide(slides[0], 0);
+    expect(rendered0).toContain('class="slide-bg-layer slide-bg-gradient-dark"');
     expect(slides[0].html).toContain('class="slide-watermark">CONFIDENTIAL</div>');
     expect(slides[0].html).toContain('class="slide-text-gradient gradient-sunset">The Future of Presentations</span>');
     expect(slides[0].html).toContain('class="slide-text-color text-color-emerald">growth in revenue</span>');
@@ -144,10 +146,43 @@ Here is {color:#38bdf8}Sky Blue Text{/color} and {bg:#22c55e}Green Highlight{/bg
     const slides = parseSlides(md);
     expect(slides.length).toBe(1);
     expect(slides[0].bg).toBe("#0f172a");
-    expect(slides[0].html).toContain('class="slide-bg-layer" style="background-color: #0f172a"');
+    const rendered = renderSlide(slides[0], 0);
+    expect(rendered).toContain('class="slide-bg-layer" style="background-color: #0f172a"');
     expect(slides[0].html).toContain('class="slide-custom-font" style="font-family: \'Syne\', var(--font-display), sans-serif">Artistic Title</span>');
     expect(slides[0].html).toContain('class="slide-text-color" style="color: #38bdf8">Sky Blue Text</span>');
     expect(slides[0].html).toContain('class="slide-text-bg" style="background-color: #22c55e">Green Highlight</span>');
+  });
+
+  test("parses loose unquoted attributes and indented nested cards inside grids", () => {
+    const md = `
+# Nested Component Showcase
+
+:::grid(cols=2)
+  :::card(title=UPI, icon='⚡')
+  Unified Payments Interface volume reached 100B.
+  :::
+  :::card(title='Credit Card', icon="💳")
+  Credit Card spending grew 28% YoY.
+  :::
+:::
+
+:::callout(type=warning)
+Security compliance is mandatory for payment gateways.
+:::
+
+:::badge(text=FinTech, color=emerald, pulse=true)
+`;
+    const slides = parseSlides(md);
+    expect(slides.length).toBe(1);
+    expect(slides[0].html).toContain('class="slide-grid grid-cols-2"');
+    expect(slides[0].html).toContain('class="slide-card-title">UPI</h4>');
+    expect(slides[0].html).toContain('class="slide-card-title">Credit Card</h4>');
+    expect(slides[0].html).toContain('class="slide-callout callout-warning"');
+    expect(slides[0].html).toContain('class="slide-badge badge-emerald"');
+    expect(slides[0].html).toContain('class="badge-pulse-dot"');
+    expect(slides[0].html).not.toContain(":::grid");
+    expect(slides[0].html).not.toContain(":::card");
+    expect(slides[0].html).not.toContain(":::");
   });
 
   test("parses the example deck fixture", () => {

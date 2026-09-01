@@ -192,7 +192,148 @@ Free • No Account Required • 100% Client-Side
   },
 };
 
+const SLIDE_TEMPLATES: Record<string, { label: string; icon: string; snippet: string }> = {
+  title: {
+    label: "Title / Hero Cover",
+    icon: "🌟",
+    snippet: `<!-- bg: gradient-dark -->
+:::layout(cover)
+# {gradient:sunset}Presentation Title{/gradient}
+### Clear and Compelling Subtitle
+:::badge(text="Keynote", color="emerald", pulse=true)
+:::
+<!-- note: Welcome the audience and outline the goals. -->`,
+  },
+  split: {
+    label: "50/50 Comparison",
+    icon: "⚖️",
+    snippet: `## ⚖️ Strategic Comparison
+
+:::layout(split)
+:::col
+### 👈 Option A
+- High speed execution
+- Cost effective scaling
+:::
+:::col
+### 👉 Option B
+- Dedicated enterprise SLA
+- Advanced customizations
+:::
+:::
+<!-- note: Contrast tradeoffs between options. -->`,
+  },
+  cards: {
+    label: "2-Column Cards",
+    icon: "🃏",
+    snippet: `## 🎯 Strategic Pillars
+
+:::grid(cols=2)
+:::card(title="Performance Pillar", icon="⚡")
+- Sub-10ms response time
+- 99.99% reliability SLA
+:::
+:::card(title="Security Architecture", icon="🛡️")
+- End-to-end encryption
+- Zero-trust access controls
+:::
+:::
+<!-- note: Detail each pillar. -->`,
+  },
+  metric: {
+    label: "Big Metric Stat",
+    icon: "📈",
+    snippet: `## 📈 Explosive Growth Metric
+
+:::metric(value="+340%", label="Annual Scale & Adoption", sub="5-Year Horizon")
+
+Key growth drivers powered by developer adoption and enterprise expansion.
+<!-- note: Highlight the key metrics. -->`,
+  },
+  chart: {
+    label: "Multi-Series Chart",
+    icon: "📊",
+    snippet: `## 📊 Multi-Year Revenue Comparison
+
+:::chart(type="bar", title="Annual Recurring Revenue ($M)")
+labels: 2022, 2023, 2024, 2025, 2026
+series: Product A [15, 30, 55, 90, 140]
+series: Product B [10, 22, 40, 68, 105]
+:::
+<!-- note: Walk through year-by-year data. -->`,
+  },
+  bento: {
+    label: "Bento Box Grid",
+    icon: "🍱",
+    snippet: `## 🍱 Comprehensive Overview
+
+:::bento
+:::box(span=2, bg="gradient")
+### 🚀 Primary Pillar
+Transforming how teams present worldwide.
+:::
+:::box(span=1, bg="glass")
+### ⚡ Speed
+:::metric(value="10x", label="Creation Velocity")
+:::
+:::
+<!-- note: Overview of the core structure. -->`,
+  },
+  quote: {
+    label: "Impactful Quote",
+    icon: "💬",
+    snippet: `<!-- bg: gradient-indigo -->
+:::layout(quote)
+"Presentation.AI gives our team 10x presentation velocity with unmatched stage polish."
+— Chief Technology Officer, Global Tech Leader
+:::
+<!-- note: Customer testimonial and validation. -->`,
+  },
+  image: {
+    label: "Image Showcase",
+    icon: "🖼️",
+    snippet: `## 🖼️ Visual Showcase
+
+![High Impact Architecture](https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80)
+
+<!-- note: Detail the architecture image. -->`,
+  },
+  blank: {
+    label: "Standard Slide",
+    icon: "📄",
+    snippet: `## Slide Title
+
+- First key takeaway
+- Second key takeaway {click}
+- Third key takeaway {click}
+
+<!-- note: Speaker notes go here. -->`,
+  },
+};
+
+const UNSPLASH_PRESETS = [
+  { label: "Dashboard", url: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80" },
+  { label: "Modern Tech", url: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1200&q=80" },
+  { label: "Team / Office", url: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80" },
+  { label: "Abstract Gradient", url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80" },
+  { label: "Cyber Matrix", url: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1200&q=80" },
+];
+
+const FONT_SIZES = [
+  12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48, 56, 64, 72, 80, 96,
+];
+
 const STORAGE_KEY = "presentation_ai_playground_deck";
+
+interface SelectedElementData {
+  elType: string;
+  text: string;
+  title: string;
+  value: string;
+  label: string;
+  src?: string;
+  tagName: string;
+}
 
 export function PlaygroundShell() {
   const [markdown, setMarkdown] = useState<string>(() => {
@@ -203,20 +344,49 @@ export function PlaygroundShell() {
     return PRESET_DECKS.pitch.markdown;
   });
 
+  // View Mode: "studio" (PowerPoint style), "split" (Side-by-side), "markdown" (Raw code)
+  const [viewMode, setViewMode] = useState<"studio" | "split" | "markdown">("studio");
+  const [activeRibbonTab, setActiveRibbonTab] = useState<"home" | "elements" | "design" | "media" | "slideshow" | "transitions" | "ai">("home");
+  const [isInspectorOpen, setIsInspectorOpen] = useState(true);
+
+  // In-Slide Interactive Selection State
+  const [selectedElement, setSelectedElement] = useState<SelectedElementData | null>(null);
+  const [selectedText, setSelectedText] = useState<string | null>(null);
+  const [currentFontSize, setCurrentFontSize] = useState<number>(32);
+
+  // Deck Theme & Styling
   const [theme, setTheme] = useState<string>("nord");
   const [template, setTemplate] = useState<string>("classic");
   const [transition, setTransition] = useState<string>("slide");
   const [size, setSize] = useState<string>("m");
   const [headFont, setHeadFont] = useState<string>("");
   const [bodyFont, setBodyFont] = useState<string>("");
+
+  // Modals & Popovers
   const [showAiModal, setShowAiModal] = useState(false);
   const [showPresenterModal, setShowPresenterModal] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showPresetsMenu, setShowPresetsMenu] = useState(false);
-  const [showDesignMenu, setShowDesignMenu] = useState(false);
+  const [showAddSlideMenu, setShowAddSlideMenu] = useState(false);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [showGridModal, setShowGridModal] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [customImageUrl, setCustomImageUrl] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Presenter cockpit timer state
+  // Screen blanking state
+  const [blankScreenMode, setBlankScreenMode] = useState<"none" | "black" | "white">("none");
+
+  // Auto Slideshow State & Configuration
+  const [isAutoPlaying, setIsAutoPlaying] = useState(false);
+  const [autoInterval, setAutoInterval] = useState<number>(5);
+  const [autoLoop, setAutoLoop] = useState(true);
+  const [autoProgress, setAutoProgress] = useState(0);
+
+  // Custom Color State
+  const [customSlideBg, setCustomSlideBg] = useState("#1e1b4b");
+
+  // Presenter Cockpit Timer
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
@@ -249,6 +419,53 @@ export function PlaygroundShell() {
     const s = secs % 60;
     return `${mins.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
+
+  // Helper to split markdown into slide array
+  const slideSections = useMemo(() => {
+    return markdown
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n")
+      .split(/\n[ \t]*---[ \t]*\n/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+  }, [markdown]);
+
+  const activeSlideMarkdown = slideSections[currentSlideIndex] || "";
+
+  // Auto Slideshow Timer Effect
+  useEffect(() => {
+    if (!isAutoPlaying) return;
+
+    const intervalMs = autoInterval * 1000;
+    const stepMs = 100;
+    let elapsedMs = 0;
+
+    const timer = setInterval(() => {
+      elapsedMs += stepMs;
+      const progress = Math.min(100, (elapsedMs / intervalMs) * 100);
+      setAutoProgress(progress);
+
+      if (elapsedMs >= intervalMs) {
+        elapsedMs = 0;
+        setAutoProgress(0);
+        setCurrentSlideIndex((prev) => {
+          if (prev < slideSections.length - 1) {
+            return prev + 1;
+          } else if (autoLoop) {
+            return 0;
+          } else {
+            setIsAutoPlaying(false);
+            return prev;
+          }
+        });
+      }
+    }, stepMs);
+
+    return () => {
+      clearInterval(timer);
+      setAutoProgress(0);
+    };
+  }, [isAutoPlaying, autoInterval, autoLoop, slideSections.length]);
 
   // Extract deck title
   const extractTitle = useCallback((md: string) => {
@@ -360,7 +577,7 @@ export function PlaygroundShell() {
     updateTheme(presenterIframeRef.current);
   }, [theme, size, headFont, bodyFont, template, transition]);
 
-  // Listen for iframe communication (ready, navigation, goto, actions)
+  // Listen for iframe communication
   useEffect(() => {
     function onMessage(e: MessageEvent) {
       if (!e.data || typeof e.data !== "object") return;
@@ -374,8 +591,31 @@ export function PlaygroundShell() {
         setCurrentSlideIndex((prev) => Math.max(0, Math.min(parsedSlides.length - 1, prev + delta)));
       } else if (e.data.type === "goto" && typeof e.data.index === "number") {
         setCurrentSlideIndex(Math.max(0, Math.min(parsedSlides.length - 1, e.data.index)));
-      } else if (e.data.type === "action" && e.data.action === "present") {
-        setIsFullscreen(true);
+      } else if (e.data.type === "element-selected") {
+        setSelectedElement({
+          elType: e.data.elType || "text",
+          text: e.data.text || "",
+          title: e.data.title || "",
+          value: e.data.value || "",
+          label: e.data.label || "",
+          src: e.data.src || "",
+          tagName: e.data.tagName || "",
+        });
+      } else if (e.data.type === "element-deselected") {
+        setSelectedElement(null);
+      } else if (e.data.type === "text-selected") {
+        setSelectedText(e.data.text || null);
+      } else if (e.data.type === "text-deselected") {
+        setSelectedText(null);
+      } else if (e.data.type === "action") {
+        const act = e.data.action;
+        if (act === "present" || act === "fullscreen") setIsFullscreen((prev) => !prev);
+        else if (act === "presenter") setShowPresenterModal((prev) => !prev);
+        else if (act === "grid") setShowGridModal((prev) => !prev);
+        else if (act === "auto-slideshow") setIsAutoPlaying((prev) => !prev);
+        else if (act === "black-screen") setBlankScreenMode((prev) => (prev === "black" ? "none" : "black"));
+        else if (act === "white-screen") setBlankScreenMode((prev) => (prev === "white" ? "none" : "white"));
+        else if (act === "shortcuts") setShowShortcutsModal((prev) => !prev);
       }
     }
     window.addEventListener("message", onMessage);
@@ -394,13 +634,29 @@ export function PlaygroundShell() {
           activeEl.getAttribute("contenteditable") === "true");
 
       if (e.key === "Escape") {
-        if (isFullscreen) setIsFullscreen(false);
-        if (showPresenterModal) setShowPresenterModal(false);
+        if (blankScreenMode !== "none") { setBlankScreenMode("none"); return; }
+        if (isFullscreen) { setIsFullscreen(false); return; }
+        if (showPresenterModal) { setShowPresenterModal(false); return; }
+        if (showGridModal) { setShowGridModal(false); return; }
+        if (showShortcutsModal) { setShowShortcutsModal(false); return; }
+        if (showImageModal) { setShowImageModal(false); return; }
+        setSelectedElement(null);
+        setSelectedText(null);
         return;
       }
 
-      // If user is actively typing in the editor, don't navigate unless Alt is pressed
       if (isInput && !e.altKey) return;
+
+      const k = e.key.toLowerCase();
+      if (!isInput && !e.metaKey && !e.ctrlKey) {
+        if (k === "f") { e.preventDefault(); setIsFullscreen((prev) => !prev); return; }
+        if (k === "p") { e.preventDefault(); setShowPresenterModal((prev) => !prev); return; }
+        if (k === "g") { e.preventDefault(); setShowGridModal((prev) => !prev); return; }
+        if (k === "a") { e.preventDefault(); setIsAutoPlaying((prev) => !prev); return; }
+        if (k === "b") { e.preventDefault(); setBlankScreenMode((prev) => (prev === "black" ? "none" : "black")); return; }
+        if (k === "w") { e.preventDefault(); setBlankScreenMode((prev) => (prev === "white" ? "none" : "white")); return; }
+        if (k === "?" || k === "h") { e.preventDefault(); setShowShortcutsModal((prev) => !prev); return; }
+      }
 
       if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === "PageDown" || (e.key === " " && !isInput)) {
         e.preventDefault();
@@ -419,7 +675,7 @@ export function PlaygroundShell() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [parsedSlides.length, isFullscreen, showPresenterModal]);
+  }, [parsedSlides.length, isFullscreen, showPresenterModal, showGridModal, showShortcutsModal, showImageModal, blankScreenMode]);
 
   // Sync slides into all active preview iframes in realtime
   useEffect(() => {
@@ -428,25 +684,153 @@ export function PlaygroundShell() {
     dispatchRender(presenterIframeRef.current);
   }, [dispatchRender, shellHtml]);
 
-  // AI transformations for the current active slide
+  // ─── Slide Operations for PowerPoint Visual Workflow ──────────────
+  const updateActiveSlideMarkdown = useCallback(
+    (newSlideMd: string) => {
+      const sections = [...slideSections];
+      sections[currentSlideIndex] = newSlideMd;
+      const combined = sections.join("\n\n---\n\n");
+      setMarkdown(combined);
+      editorRef.current?.setValue(combined);
+    },
+    [slideSections, currentSlideIndex]
+  );
+
+  const handleAddSlide = (templateKey: string) => {
+    const templateSnippet = SLIDE_TEMPLATES[templateKey]?.snippet || SLIDE_TEMPLATES.blank.snippet;
+    const sections = [...slideSections];
+    const insertIdx = currentSlideIndex + 1;
+    sections.splice(insertIdx, 0, templateSnippet);
+    const combined = sections.join("\n\n---\n\n");
+    setMarkdown(combined);
+    editorRef.current?.setValue(combined);
+    setCurrentSlideIndex(insertIdx);
+    setShowAddSlideMenu(false);
+  };
+
+  const handleDuplicateSlide = (idx: number) => {
+    const sections = [...slideSections];
+    const target = sections[idx];
+    if (!target) return;
+    sections.splice(idx + 1, 0, target);
+    const combined = sections.join("\n\n---\n\n");
+    setMarkdown(combined);
+    editorRef.current?.setValue(combined);
+    setCurrentSlideIndex(idx + 1);
+  };
+
+  const handleDeleteSlide = (idx: number) => {
+    if (slideSections.length <= 1) return;
+    const sections = [...slideSections];
+    sections.splice(idx, 1);
+    const combined = sections.join("\n\n---\n\n");
+    setMarkdown(combined);
+    editorRef.current?.setValue(combined);
+    setCurrentSlideIndex((prev) => Math.max(0, Math.min(sections.length - 1, prev > idx ? prev - 1 : prev)));
+  };
+
+  const handleMoveSlide = (from: number, to: number) => {
+    if (to < 0 || to >= slideSections.length) return;
+    const sections = [...slideSections];
+    const [moved] = sections.splice(from, 1);
+    sections.splice(to, 0, moved);
+    const combined = sections.join("\n\n---\n\n");
+    setMarkdown(combined);
+    editorRef.current?.setValue(combined);
+    setCurrentSlideIndex(to);
+  };
+
+  const handleApplySlideBackground = (bgValue: string) => {
+    let current = activeSlideMarkdown;
+    current = current.replace(/<!--\s*bg:\s*[^>]+?\s*-->\n?/gi, "");
+    if (bgValue) {
+      current = `<!-- bg: ${bgValue} -->\n${current.trim()}`;
+    }
+    updateActiveSlideMarkdown(current);
+  };
+
+  const handleInsertActiveSlideSnippet = (snippet: string) => {
+    const updated = `${activeSlideMarkdown.trim()}\n\n${snippet.trim()}\n`;
+    updateActiveSlideMarkdown(updated);
+  };
+
+  // ─── Format Selected Text or Selected Element ─────────────────────
+  const handleApplyFormatting = (
+    action: "size" | "color" | "bg" | "gradient" | "bold" | "italic" | "underline" | "align" | "reveal" | "clear" | "delete" | "replace-text",
+    param?: string | number
+  ) => {
+    const target = selectedText || selectedElement?.text || selectedElement?.title || selectedElement?.value;
+    if (!target) return;
+
+    let md = activeSlideMarkdown;
+
+    if (action === "delete") {
+      if (selectedElement?.elType === "image" && selectedElement.src) {
+        md = md.replace(new RegExp(`!\\[.*?\\]\\(${selectedElement.src}\\)`, "i"), "");
+      } else if (selectedElement?.elType === "card" && selectedElement.title) {
+        md = md.replace(new RegExp(`:::card\\(.*?title=["']${selectedElement.title}["'][\\s\\S]*?:::`, "i"), "");
+      } else if (selectedElement?.elType === "metric") {
+        md = md.replace(/:::metric\(.*?\)[\s\S]*?(?=\n:::|$)/i, "");
+      } else if (selectedElement?.elType === "chart") {
+        md = md.replace(/:::chart\(.*?\)[\s\S]*?:::/i, "");
+      } else if (selectedElement?.elType === "callout") {
+        md = md.replace(/:::callout\(.*?\)[\s\S]*?:::/i, "");
+      } else {
+        md = md.replace(target, "");
+      }
+      setSelectedElement(null);
+      setSelectedText(null);
+    } else if (action === "replace-text" && typeof param === "string") {
+      md = md.replace(target, param);
+      setSelectedElement((prev) => (prev ? { ...prev, text: param } : null));
+    } else if (action === "size" && param !== undefined) {
+      const numSize = Number(param);
+      setCurrentFontSize(numSize);
+      // Remove any existing {size:...} wrapper around target if present
+      const cleanTarget = target.replace(/\{size:[^}]+\}([\s\S]*?)\{\/size\}/g, "$1");
+      md = md.replace(target, `{size:${numSize}}${cleanTarget}{/size}`);
+    } else if (action === "color" && param) {
+      const cleanTarget = target.replace(/\{color:[^}]+\}([\s\S]*?)\{\/color\}/g, "$1");
+      md = md.replace(target, `{color:${param}}${cleanTarget}{/color}`);
+    } else if (action === "bg" && param) {
+      const cleanTarget = target.replace(/\{bg:[^}]+\}([\s\S]*?)\{\/bg\}/g, "$1");
+      md = md.replace(target, `{bg:${param}}${cleanTarget}{/bg}`);
+    } else if (action === "gradient") {
+      const cleanTarget = target.replace(/\{gradient:[^}]+\}([\s\S]*?)\{\/gradient\}/g, "$1");
+      md = md.replace(target, `{gradient:${param || "sunset"}}${cleanTarget}{/gradient}`);
+    } else if (action === "bold") {
+      md = md.replace(target, `**${target.replace(/\*\*/g, "")}**`);
+    } else if (action === "italic") {
+      md = md.replace(target, `*${target.replace(/\*/g, "")}*`);
+    } else if (action === "underline") {
+      md = md.replace(target, `<u>${target.replace(/<\/?u>/g, "")}</u>`);
+    } else if (action === "align" && param) {
+      md = md.replace(target, `{align:${param}}${target}{/align}`);
+    } else if (action === "reveal") {
+      md = md.replace(target, `${target} {click}`);
+    } else if (action === "clear") {
+      const stripped = target
+        .replace(/\{[a-z]+:[^}]+\}/gi, "")
+        .replace(/\{\/[a-z]+\}/gi, "")
+        .replace(/[*_~`]/g, "")
+        .replace(/<\/?u>/g, "");
+      md = md.replace(target, stripped);
+    }
+
+    updateActiveSlideMarkdown(md);
+  };
+
+  // AI transformations for current active slide
   const handleTransformSlide = async (
     action: "punchy" | "summarize" | "expand" | "generate-notes" | "translate",
     targetLanguage?: string
   ) => {
     try {
-      const slideSections = markdown
-        .replace(/\r\n/g, "\n")
-        .replace(/\r/g, "\n")
-        .split(/\n[ \t]*---[ \t]*\n/);
-
-      const targetIndex = Math.min(Math.max(0, currentSlideIndex), slideSections.length - 1);
-      const currentSlideMarkdown = slideSections[targetIndex] || markdown;
-
       const res = await fetch("/api/ai/transform", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          markdown: currentSlideMarkdown,
+          markdown: activeSlideMarkdown || markdown,
           action,
           targetLanguage,
         }),
@@ -455,10 +839,7 @@ export function PlaygroundShell() {
       if (res.ok) {
         const data = await res.json();
         if (data.result) {
-          slideSections[targetIndex] = data.result;
-          const updatedMarkdown = slideSections.join("\n\n---\n\n");
-          setMarkdown(updatedMarkdown);
-          editorRef.current?.setValue(updatedMarkdown);
+          updateActiveSlideMarkdown(data.result);
         }
       }
     } catch (e) {
@@ -470,20 +851,17 @@ export function PlaygroundShell() {
     setMarkdown(newMd);
     editorRef.current?.setValue(newMd);
     if (newTheme) setTheme(newTheme);
+    setCurrentSlideIndex(0);
   };
-
-  const [isExportingPptx, setIsExportingPptx] = useState(false);
 
   // Downloads
   const handleDownloadPptx = async () => {
     try {
-      setIsExportingPptx(true);
       const { exportToPptx } = await import("@/lib/export/pptxExport");
       await exportToPptx(markdown, extractTitle(markdown), theme);
     } catch (e) {
       console.error("PPTX export failed:", e);
     } finally {
-      setIsExportingPptx(false);
       setShowExportMenu(false);
     }
   };
@@ -510,37 +888,58 @@ export function PlaygroundShell() {
     setShowExportMenu(false);
   };
 
-  const currentNotes = parsedSlides[currentSlideIndex]?.notes || "No speaker notes written for this slide. Add <!-- note: ... --> in markdown.";
+  const currentNotes = parsedSlides[currentSlideIndex]?.notes || "";
   const nextSlideHtml = slideHtmls[currentSlideIndex + 1] || null;
+  const hasActiveSelection = Boolean(selectedText || selectedElement);
+  const activeSelectedSnippet = selectedText || selectedElement?.text || selectedElement?.title || selectedElement?.value || "";
 
   return (
-    <div className="flex flex-col h-screen bg-background overflow-hidden">
-      {/* ─── Top Main Navigation Bar ───────────────────────────────── */}
-      <header className="flex items-center justify-between h-14 px-4 border-b border-[var(--border)] bg-surface shrink-0 z-20 gap-3">
-        {/* Left Pod: Brand & Presets */}
-        <div className="flex items-center gap-2.5 shrink-0">
+    <div className="flex flex-col h-screen bg-background overflow-hidden select-none font-sans relative">
+      {/* Blank Screen Overlay (B/W shortcut pause) */}
+      {blankScreenMode !== "none" && (
+        <div
+          onClick={() => setBlankScreenMode("none")}
+          className={`fixed inset-0 z-50 flex items-center justify-center cursor-pointer ${
+            blankScreenMode === "black" ? "bg-black text-white/40" : "bg-white text-black/40"
+          }`}
+        >
+          <span className="text-xs font-mono">Screen paused (Press B/W or Esc to resume)</span>
+        </div>
+      )}
+
+      {/* ─── Top Master Header Bar ─────────────────────────────────── */}
+      <header className="flex items-center justify-between h-13 px-3.5 border-b border-[var(--border)] bg-surface shrink-0 z-20 gap-3">
+        {/* Left: Brand & Presets */}
+        <div className="flex items-center gap-3 shrink-0">
           <Link href="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shadow-md shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-500 to-indigo-600 flex items-center justify-center shadow-md shrink-0">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="2" y="3" width="20" height="14" rx="2" />
                 <path d="M8 21h8" />
                 <path d="M12 17v4" />
               </svg>
             </div>
-            <span className="text-sm font-bold text-foreground tracking-tight hidden sm:inline">
-              Presentation<span className="text-brand-500">.AI</span>
-            </span>
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-foreground tracking-tight leading-none">
+                Presentation<span className="text-brand-500">.AI</span>
+              </span>
+              <span className="text-[9px] text-[var(--text-tertiary)] uppercase tracking-wider font-semibold">
+                Studio
+              </span>
+            </div>
           </Link>
 
-          {/* Sample Presets Switcher */}
+          <div className="h-5 w-px bg-[var(--border)]" />
+
+          {/* Sample Templates Switcher */}
           <div className="relative">
             <button
               type="button"
               onClick={() => setShowPresetsMenu(!showPresetsMenu)}
-              className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-[var(--border)] bg-background hover:bg-surface-2 text-xs font-semibold text-foreground transition-all cursor-pointer shadow-xs"
+              className="inline-flex items-center gap-1.5 h-7 px-2 rounded-lg border border-[var(--border)] bg-background hover:bg-surface-2 text-xs font-semibold text-foreground transition-all cursor-pointer shadow-xs"
             >
               <span>🪄</span> Templates
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <polyline points="6 9 12 15 18 9" />
               </svg>
             </button>
@@ -555,11 +954,12 @@ export function PlaygroundShell() {
                       setMarkdown(deck.markdown);
                       setTheme(deck.theme);
                       editorRef.current?.setValue(deck.markdown);
+                      setCurrentSlideIndex(0);
                       setShowPresetsMenu(false);
                     }}
                     className="w-full text-left px-3 py-2 rounded-lg hover:bg-surface-2 text-xs flex items-center gap-2.5 text-foreground cursor-pointer transition-colors"
                   >
-                    <span className="text-lg">{deck.icon}</span>
+                    <span className="text-base">{deck.icon}</span>
                     <div>
                       <div className="font-semibold">{deck.name}</div>
                       <div className="text-[10px] text-[var(--text-secondary)]">Theme: {deck.theme}</div>
@@ -571,230 +971,60 @@ export function PlaygroundShell() {
           </div>
         </div>
 
-        {/* Center Pod: Design Settings (Full inline strip on 2xl, compact popover on smaller screens) */}
-        <div className="flex items-center">
-          {/* 2xl+ Screen Inline Strip */}
-          <div className="hidden 2xl:flex items-center h-9 px-1.5 bg-background rounded-lg border border-[var(--border)] gap-1 shadow-xs shrink-0">
-            {/* Theme */}
-            <div className="flex items-center gap-1 px-1.5">
-              <span className="text-xs">🎨</span>
-              <select
-                value={theme}
-                onChange={(e) => setTheme(e.target.value)}
-                className="bg-transparent text-xs text-foreground font-medium outline-none cursor-pointer pr-1 w-20 truncate"
-                title="Presentation Theme"
-              >
-                {THEME_OPTIONS.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+        {/* Center: PowerPoint View Mode Pill Switcher */}
+        <div className="flex items-center bg-background rounded-lg border border-[var(--border)] p-0.5 shadow-xs">
+          <button
+            type="button"
+            onClick={() => setViewMode("studio")}
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
+              viewMode === "studio"
+                ? "bg-brand-600 text-white shadow-xs"
+                : "text-[var(--text-secondary)] hover:text-foreground hover:bg-surface-2"
+            }`}
+          >
+            <span>🖥️</span>
+            <span>Studio View</span>
+          </button>
 
-            <div className="h-4 w-px bg-[var(--border)] shrink-0" />
+          <button
+            type="button"
+            onClick={() => setViewMode("split")}
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
+              viewMode === "split"
+                ? "bg-brand-600 text-white shadow-xs"
+                : "text-[var(--text-secondary)] hover:text-foreground hover:bg-surface-2"
+            }`}
+          >
+            <span>⚖️</span>
+            <span>Split View</span>
+          </button>
 
-            {/* Template */}
-            <div className="flex items-center gap-1 px-1.5">
-              <span className="text-xs">📐</span>
-              <select
-                value={template}
-                onChange={(e) => setTemplate(e.target.value)}
-                className="bg-transparent text-xs text-foreground font-medium outline-none cursor-pointer pr-1 w-18 capitalize"
-                title="Slide Layout Template"
-              >
-                {TEMPLATE_OPTIONS.map((t) => (
-                  <option key={t.id} value={t.id}>{t.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="h-4 w-px bg-[var(--border)] shrink-0" />
-
-            {/* Transition */}
-            <div className="flex items-center gap-1 px-1.5">
-              <span className="text-xs">🔀</span>
-              <select
-                value={transition}
-                onChange={(e) => setTransition(e.target.value)}
-                className="bg-transparent text-xs text-foreground font-medium outline-none cursor-pointer pr-1 w-16 capitalize"
-                title="Slide Transition Effect"
-              >
-                {TRANSITION_OPTIONS.map((t) => (
-                  <option key={t.id} value={t.id}>{t.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="h-4 w-px bg-[var(--border)] shrink-0" />
-
-            {/* Size */}
-            <div className="flex items-center gap-1 px-1.5">
-              <span className="text-xs">🖥️</span>
-              <select
-                value={size}
-                onChange={(e) => setSize(e.target.value)}
-                className="bg-transparent text-xs text-foreground font-medium outline-none cursor-pointer pr-1 w-14 uppercase"
-                title="Typography Scale"
-              >
-                {SIZE_OPTIONS.map((s) => (
-                  <option key={s.id} value={s.id}>{s.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="h-4 w-px bg-[var(--border)] shrink-0" />
-
-            {/* Head Font */}
-            <div className="flex items-center gap-1 px-1.5">
-              <span className="text-xs" title="Heading Font">🔤</span>
-              <select
-                value={headFont}
-                onChange={(e) => setHeadFont(e.target.value)}
-                className="bg-transparent text-xs text-foreground font-medium outline-none cursor-pointer pr-1 w-24 truncate"
-                title="Heading Font Family"
-              >
-                <option value="">Head Font</option>
-                {FONT_OPTIONS.map((f) => (
-                  <option key={f.id} value={f.id}>{f.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="h-4 w-px bg-[var(--border)] shrink-0" />
-
-            {/* Body Font */}
-            <div className="flex items-center gap-1 px-1.5">
-              <span className="text-xs text-[var(--text-tertiary)]" title="Body Font">Aa</span>
-              <select
-                value={bodyFont}
-                onChange={(e) => setBodyFont(e.target.value)}
-                className="bg-transparent text-xs text-foreground font-medium outline-none cursor-pointer pr-1 w-24 truncate"
-                title="Body Font Family"
-              >
-                <option value="">Body Font</option>
-                {FONT_OPTIONS.map((f) => (
-                  <option key={f.id} value={f.id}>{f.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Compact Design Popover for < 2xl screens */}
-          <div className="relative 2xl:hidden">
-            <button
-              type="button"
-              onClick={() => setShowDesignMenu(!showDesignMenu)}
-              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-[var(--border)] bg-background hover:bg-surface-2 text-xs font-semibold text-foreground transition-all cursor-pointer shadow-xs"
-              title="Theme, Fonts & Layout Settings"
-            >
-              <span>🎨</span> Design Settings
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
-            </button>
-
-            {showDesignMenu && (
-              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-80 rounded-xl border border-[var(--border)] bg-surface p-3 shadow-2xl z-50 animate-fade-in space-y-2.5">
-                <div className="text-[11px] font-bold text-foreground flex items-center justify-between pb-1 border-b border-[var(--border)]">
-                  <span>🎨 Deck Design & Typography</span>
-                  <button
-                    type="button"
-                    onClick={() => setShowDesignMenu(false)}
-                    className="text-[var(--text-tertiary)] hover:text-foreground text-xs cursor-pointer"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase block mb-1">Theme</label>
-                    <select
-                      value={theme}
-                      onChange={(e) => setTheme(e.target.value)}
-                      className="w-full p-1.5 rounded-lg bg-background border border-[var(--border)] text-xs text-foreground font-medium outline-none"
-                    >
-                      {THEME_OPTIONS.map((t) => (
-                        <option key={t.id} value={t.id}>{t.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase block mb-1">Layout Template</label>
-                    <select
-                      value={template}
-                      onChange={(e) => setTemplate(e.target.value)}
-                      className="w-full p-1.5 rounded-lg bg-background border border-[var(--border)] text-xs text-foreground font-medium outline-none capitalize"
-                    >
-                      {TEMPLATE_OPTIONS.map((t) => (
-                        <option key={t.id} value={t.id}>{t.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase block mb-1">Transition</label>
-                    <select
-                      value={transition}
-                      onChange={(e) => setTransition(e.target.value)}
-                      className="w-full p-1.5 rounded-lg bg-background border border-[var(--border)] text-xs text-foreground font-medium outline-none capitalize"
-                    >
-                      {TRANSITION_OPTIONS.map((t) => (
-                        <option key={t.id} value={t.id}>{t.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase block mb-1">Scale / Size</label>
-                    <select
-                      value={size}
-                      onChange={(e) => setSize(e.target.value)}
-                      className="w-full p-1.5 rounded-lg bg-background border border-[var(--border)] text-xs text-foreground font-medium outline-none uppercase"
-                    >
-                      {SIZE_OPTIONS.map((s) => (
-                        <option key={s.id} value={s.id}>{s.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase block mb-1">Heading Font</label>
-                    <select
-                      value={headFont}
-                      onChange={(e) => setHeadFont(e.target.value)}
-                      className="w-full p-1.5 rounded-lg bg-background border border-[var(--border)] text-xs text-foreground font-medium outline-none"
-                    >
-                      <option value="">Theme Default</option>
-                      {FONT_OPTIONS.map((f) => (
-                        <option key={f.id} value={f.id}>{f.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase block mb-1">Body Font</label>
-                    <select
-                      value={bodyFont}
-                      onChange={(e) => setBodyFont(e.target.value)}
-                      className="w-full p-1.5 rounded-lg bg-background border border-[var(--border)] text-xs text-foreground font-medium outline-none"
-                    >
-                      <option value="">Theme Default</option>
-                      {FONT_OPTIONS.map((f) => (
-                        <option key={f.id} value={f.id}>{f.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+          <button
+            type="button"
+            onClick={() => setViewMode("markdown")}
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
+              viewMode === "markdown"
+                ? "bg-brand-600 text-white shadow-xs"
+                : "text-[var(--text-secondary)] hover:text-foreground hover:bg-surface-2"
+            }`}
+          >
+            <span>📝</span>
+            <span>Code (MD)</span>
+          </button>
         </div>
 
-        {/* Right Pod: Actions Cluster */}
+        {/* Right: Actions (AI, Presenter, Present, Export, Help) */}
         <div className="flex items-center gap-2 shrink-0">
+          {/* Keyboard Shortcuts Button */}
+          <button
+            type="button"
+            onClick={() => setShowShortcutsModal(true)}
+            className="w-8 h-8 rounded-lg border border-[var(--border)] bg-background hover:bg-surface-2 text-xs font-bold text-[var(--text-secondary)] hover:text-foreground flex items-center justify-center cursor-pointer transition-colors"
+            title="Keyboard Shortcuts (?)"
+          >
+            ?
+          </button>
+
           {/* AI Generator Button */}
           <button
             type="button"
@@ -802,7 +1032,7 @@ export function PlaygroundShell() {
             className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 text-white font-bold text-xs shadow-sm transition-all cursor-pointer active:scale-95 shrink-0"
           >
             <span>✨</span>
-            <span className="hidden sm:inline">AI Generator</span>
+            <span className="hidden sm:inline">AI Presentation</span>
             <span className="sm:hidden">AI</span>
           </button>
 
@@ -812,7 +1042,7 @@ export function PlaygroundShell() {
               type="button"
               onClick={() => setShowPresenterModal(true)}
               className="inline-flex items-center gap-1 h-full px-2.5 rounded-md hover:bg-surface-2 text-xs font-semibold text-foreground transition-colors cursor-pointer"
-              title="Open Dual-Screen Presenter Cockpit"
+              title="Dual-Screen Presenter Cockpit (P)"
             >
               <span>🎙️</span>
               <span className="hidden md:inline">Presenter</span>
@@ -820,12 +1050,11 @@ export function PlaygroundShell() {
 
             <div className="h-4 w-px bg-[var(--border)] mx-0.5" />
 
-            {/* Present Fullscreen */}
             <button
               type="button"
               onClick={() => setIsFullscreen(true)}
-              className="inline-flex items-center gap-1 h-full px-2.5 rounded-md hover:bg-surface-2 text-xs font-semibold text-foreground transition-colors cursor-pointer"
-              title="Fullscreen Presentation"
+              className="inline-flex items-center gap-1 h-full px-2.5 rounded-md bg-brand-50 hover:bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 text-xs font-bold transition-colors cursor-pointer"
+              title="Fullscreen Slide Show (F)"
             >
               <span>⤢</span>
               <span className="hidden md:inline">Present</span>
@@ -833,7 +1062,6 @@ export function PlaygroundShell() {
 
             <div className="h-4 w-px bg-[var(--border)] mx-0.5" />
 
-            {/* Export Dropdown */}
             <div className="relative">
               <button
                 type="button"
@@ -850,25 +1078,24 @@ export function PlaygroundShell() {
                 <div className="absolute top-full right-0 mt-1.5 w-52 rounded-xl border border-[var(--border)] bg-surface p-1.5 shadow-2xl z-50 animate-fade-in space-y-1">
                   <button
                     type="button"
-                    onClick={() => window.print()}
+                    onClick={handleDownloadPptx}
                     className="w-full text-left px-3 py-2 rounded-lg hover:bg-surface-2 text-xs flex items-center justify-between text-foreground cursor-pointer"
                   >
                     <span className="flex items-center gap-2">
-                      <span>📄</span> Export as PDF
+                      <span>📊</span> PowerPoint (.pptx)
                     </span>
-                    <span className="text-[10px] text-[var(--text-tertiary)] font-mono">Vector</span>
+                    <span className="text-[10px] text-brand-500 font-mono font-bold">Native</span>
                   </button>
 
                   <button
                     type="button"
-                    disabled={isExportingPptx}
-                    onClick={handleDownloadPptx}
-                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-surface-2 text-xs flex items-center justify-between text-foreground cursor-pointer disabled:opacity-50"
+                    onClick={() => window.print()}
+                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-surface-2 text-xs flex items-center justify-between text-foreground cursor-pointer"
                   >
                     <span className="flex items-center gap-2">
-                      <span>📊</span> {isExportingPptx ? "Exporting..." : "Export as PPTX"}
+                      <span>📄</span> Export PDF
                     </span>
-                    <span className="text-[10px] text-brand-500 font-mono font-bold">PowerPoint</span>
+                    <span className="text-[10px] text-[var(--text-tertiary)] font-mono">Vector</span>
                   </button>
 
                   <button
@@ -896,117 +1123,1283 @@ export function PlaygroundShell() {
               )}
             </div>
           </div>
-
-          {/* Sign Up CTA */}
-          <Link
-            href="/sign-up"
-            className="hidden sm:inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-surface-2 hover:bg-surface border border-[var(--border)] text-xs font-semibold text-foreground transition-all shrink-0"
-          >
-            <span>☁️</span> Save to Cloud
-          </Link>
         </div>
       </header>
 
-      {/* ─── Main Editor + Preview Split ────────────────────────────── */}
-      <div className="flex flex-1 min-h-0">
-        {/* Left Side: Markdown Editor, AI Copilot, and Insert Toolbar */}
-        <div className="flex-1 min-w-0 border-r border-[var(--border)] flex flex-col bg-background">
-          <AiCopilotBar
-            onTransform={handleTransformSlide}
-            onOpenGenerator={() => setShowAiModal(true)}
-          />
-          <EditorToolbar editorRef={editorRef} />
-          <div className="flex-1 min-h-0">
-            <MarkdownEditor
-              ref={editorRef}
-              initialValue={markdown}
-              onChange={(val) => setMarkdown(val)}
-            />
+      {/* ─── PowerPoint Ribbon Navigation Strip ──────────────────────── */}
+      <div className="border-b border-[var(--border)] bg-surface text-xs select-none">
+        {/* Ribbon Tabs Row */}
+        <div className="flex items-center px-4 gap-1 border-b border-[var(--border)]/50 bg-background/50 h-8">
+          {[
+            { id: "home", label: "Home", icon: "🏠" },
+            { id: "elements", label: "Insert Elements", icon: "➕" },
+            { id: "media", label: "Images & Media", icon: "🖼️" },
+            { id: "design", label: "Design & Themes", icon: "🎨" },
+            { id: "slideshow", label: "Slide Show & Auto", icon: "▶️" },
+            { id: "transitions", label: "Transitions", icon: "🔀" },
+            { id: "ai", label: "AI Copilot", icon: "🤖" },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveRibbonTab(tab.id as typeof activeRibbonTab)}
+              className={`inline-flex items-center gap-1.5 px-3 h-full border-b-2 font-semibold text-xs transition-all cursor-pointer ${
+                activeRibbonTab === tab.id
+                  ? "border-brand-500 text-brand-600 dark:text-brand-400 bg-surface"
+                  : "border-transparent text-[var(--text-secondary)] hover:text-foreground hover:bg-surface-2"
+              }`}
+            >
+              <span>{tab.icon}</span>
+              <span>{tab.label}</span>
+            </button>
+          ))}
+
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsInspectorOpen(!isInspectorOpen)}
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold border border-[var(--border)] transition-colors cursor-pointer ${
+                isInspectorOpen ? "bg-brand-50 text-brand-600 dark:bg-brand-900/30" : "bg-background text-foreground hover:bg-surface-2"
+              }`}
+            >
+              <span>📋</span>
+              <span>Slide Inspector</span>
+            </button>
           </div>
         </div>
 
-        {/* Right Side: Live Slide Preview Frame */}
-        <div className="flex-1 min-w-0 bg-black relative flex flex-col">
-          <div className="h-8 bg-surface border-b border-[var(--border)] px-3 flex items-center justify-between text-[11px] text-[var(--text-secondary)] font-medium select-none shrink-0">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-foreground">Live Slide Preview</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-2 text-[var(--text-tertiary)] font-mono">
-                {parsedSlides.length} {parsedSlides.length === 1 ? "slide" : "slides"}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-[var(--text-tertiary)] hidden sm:inline">Navigate: ← / →</span>
-              <button
-                type="button"
-                onClick={() => setIsFullscreen(true)}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-brand-50 hover:bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 font-semibold text-[10px] transition-colors cursor-pointer"
-              >
-                ⤢ Fullscreen
-              </button>
-            </div>
-          </div>
-
-          <div className="flex-1 relative bg-neutral-950">
-            <iframe
-              ref={iframeRef}
-              srcDoc={shellHtml}
-              className="w-full h-full border-0"
-              title="Live Slide Preview"
-              sandbox="allow-scripts allow-same-origin"
-              onLoad={() => dispatchRender(iframeRef.current)}
-            />
-          </div>
-
-          {/* Bottom Floating Navigation Toolbar */}
-          <div className="h-10 bg-surface/90 backdrop-blur border-t border-[var(--border)] px-4 flex items-center justify-between text-xs select-none shrink-0">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                disabled={currentSlideIndex <= 0}
-                onClick={() => setCurrentSlideIndex((prev) => Math.max(0, prev - 1))}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface-2 hover:bg-surface border border-[var(--border)] text-foreground font-semibold text-xs transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-                title="Previous Slide (Arrow Left)"
-              >
-                ← Prev
-              </button>
-              <button
-                type="button"
-                disabled={currentSlideIndex >= parsedSlides.length - 1}
-                onClick={() => setCurrentSlideIndex((prev) => Math.min(parsedSlides.length - 1, prev + 1))}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface-2 hover:bg-surface border border-[var(--border)] text-foreground font-semibold text-xs transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-                title="Next Slide (Arrow Right)"
-              >
-                Next →
-              </button>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-semibold text-[var(--text-secondary)]">
-                Slide <span className="text-foreground font-bold">{currentSlideIndex + 1}</span> of{" "}
-                <span className="text-foreground font-bold">{parsedSlides.length || 1}</span>
-              </span>
-            </div>
-
-            <div className="flex items-center gap-1">
-              {parsedSlides.slice(0, 10).map((_, i) => (
+        {/* Ribbon Action Controls Row */}
+        <div className="flex flex-wrap items-center px-3 py-1.5 gap-2 min-h-11">
+          {/* TAB 1: HOME - Comprehensive PowerPoint Text Formatting Toolbar */}
+          {activeRibbonTab === "home" && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* + New Slide Dropdown */}
+              <div className="relative">
                 <button
-                  key={i}
                   type="button"
-                  onClick={() => setCurrentSlideIndex(i)}
-                  className={`w-2 h-2 rounded-full transition-all cursor-pointer ${
-                    i === currentSlideIndex
-                      ? "bg-brand-600 w-4"
-                      : "bg-neutral-300 dark:bg-neutral-700 hover:bg-neutral-400"
-                  }`}
-                  title={`Jump to Slide ${i + 1}`}
-                />
+                  onClick={() => setShowAddSlideMenu(!showAddSlideMenu)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-bold text-xs shadow-xs transition-all cursor-pointer"
+                >
+                  <span>➕</span>
+                  <span>New Slide</span>
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+
+                {showAddSlideMenu && (
+                  <div className="absolute top-full left-0 mt-1.5 w-64 rounded-xl border border-[var(--border)] bg-surface p-1.5 shadow-2xl z-50 animate-fade-in space-y-1">
+                    <div className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider px-2 py-0.5">
+                      Slide Layout Templates
+                    </div>
+                    {Object.entries(SLIDE_TEMPLATES).map(([k, t]) => (
+                      <button
+                        key={k}
+                        type="button"
+                        onClick={() => handleAddSlide(k)}
+                        className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-surface-2 text-xs flex items-center gap-2 text-foreground cursor-pointer"
+                      >
+                        <span className="text-base">{t.icon}</span>
+                        <div>
+                          <div className="font-semibold">{t.label}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="h-6 w-px bg-[var(--border)]" />
+
+              {/* Numeric Font Size Selector (PowerPoint Style) */}
+              <div className="flex items-center bg-background rounded-lg border border-[var(--border)] p-0.5 gap-0.5">
+                <span className="text-[10px] font-semibold text-[var(--text-secondary)] pl-1.5">Size:</span>
+                <select
+                  value={currentFontSize}
+                  onChange={(e) => handleApplyFormatting("size", Number(e.target.value))}
+                  className="bg-transparent text-xs font-bold text-foreground px-1 outline-none cursor-pointer"
+                  title="Font Size (px)"
+                >
+                  {FONT_SIZES.map((sz) => (
+                    <option key={sz} value={sz}>{sz}px</option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  onClick={() => handleApplyFormatting("size", Math.min(96, currentFontSize + 4))}
+                  className="px-1.5 py-0.5 rounded hover:bg-surface-2 font-bold text-foreground text-[11px] cursor-pointer"
+                  title="Increase Font Size (A+)"
+                >
+                  A+
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleApplyFormatting("size", Math.max(12, currentFontSize - 4))}
+                  className="px-1.5 py-0.5 rounded hover:bg-surface-2 font-bold text-foreground text-[11px] cursor-pointer"
+                  title="Decrease Font Size (A-)"
+                >
+                  A-
+                </button>
+              </div>
+
+              {/* Bold / Italic / Underline */}
+              <div className="flex items-center bg-background rounded-lg border border-[var(--border)] p-0.5 gap-0.5">
+                <button
+                  type="button"
+                  onClick={() => handleApplyFormatting("bold")}
+                  className="px-2 py-0.5 rounded hover:bg-surface-2 font-bold text-foreground text-xs cursor-pointer"
+                  title="Bold"
+                >
+                  B
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleApplyFormatting("italic")}
+                  className="px-2 py-0.5 rounded hover:bg-surface-2 italic text-foreground text-xs cursor-pointer"
+                  title="Italic"
+                >
+                  I
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleApplyFormatting("underline")}
+                  className="px-2 py-0.5 rounded hover:bg-surface-2 underline text-foreground text-xs cursor-pointer"
+                  title="Underline"
+                >
+                  U
+                </button>
+              </div>
+
+              {/* Text Alignment (Left, Center, Right) */}
+              <div className="flex items-center bg-background rounded-lg border border-[var(--border)] p-0.5 gap-0.5">
+                <button
+                  type="button"
+                  onClick={() => handleApplyFormatting("align", "left")}
+                  className="px-1.5 py-0.5 rounded hover:bg-surface-2 text-foreground text-xs cursor-pointer"
+                  title="Align Left"
+                >
+                  ⇤
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleApplyFormatting("align", "center")}
+                  className="px-1.5 py-0.5 rounded hover:bg-surface-2 text-foreground text-xs cursor-pointer"
+                  title="Align Center"
+                >
+                  ⇥⇤
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleApplyFormatting("align", "right")}
+                  className="px-1.5 py-0.5 rounded hover:bg-surface-2 text-foreground text-xs cursor-pointer"
+                  title="Align Right"
+                >
+                  ⇥
+                </button>
+              </div>
+
+              {/* Colors & Highlights Palette */}
+              <div className="flex items-center gap-1">
+                {[
+                  { name: "White", code: "white", bg: "bg-white border border-neutral-300" },
+                  { name: "Emerald", code: "emerald", bg: "bg-emerald-500" },
+                  { name: "Cyan", code: "cyan", bg: "bg-cyan-500" },
+                  { name: "Amber", code: "amber", bg: "bg-amber-500" },
+                  { name: "Rose", code: "rose", bg: "bg-rose-500" },
+                  { name: "Purple", code: "purple", bg: "bg-purple-500" },
+                ].map((c) => (
+                  <button
+                    key={c.name}
+                    type="button"
+                    onClick={() => handleApplyFormatting("color", c.code)}
+                    className={`w-5 h-5 rounded-full ${c.bg} hover:scale-125 transition-transform cursor-pointer`}
+                    title={`Color: ${c.name}`}
+                  />
+                ))}
+
+                <button
+                  type="button"
+                  onClick={() => handleApplyFormatting("gradient", "sunset")}
+                  className="px-2 py-0.5 rounded bg-brand-500 text-white font-bold text-[10px] cursor-pointer"
+                  title="Sunset Gradient"
+                >
+                  🌈
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleApplyFormatting("bg", "amber")}
+                  className="px-2 py-0.5 rounded bg-amber-500 text-white font-bold text-[10px] cursor-pointer"
+                  title="Highlight Pill"
+                >
+                  ✨
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: INSERT ELEMENTS */}
+          {activeRibbonTab === "elements" && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => handleInsertActiveSlideSnippet('\n:::chart(type="bar", title="Multi-Series Comparison")\nlabels: Q1, Q2, Q3, Q4\nseries: 2025 [25, 45, 70, 95]\nseries: 2026 [40, 75, 110, 160]\n:::\n')}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background border border-[var(--border)] hover:bg-surface-2 text-foreground font-semibold text-xs cursor-pointer"
+              >
+                <span>📊</span> Bar Chart
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleInsertActiveSlideSnippet('\n:::chart(type="donut", title="Market Share Breakdown")\nSegment A: 45\nSegment B: 35\nSegment C: 20\n:::\n')}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background border border-[var(--border)] hover:bg-surface-2 text-foreground font-semibold text-xs cursor-pointer"
+              >
+                <span>🍩</span> Donut Chart
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleInsertActiveSlideSnippet('\n:::chart(type="area", title="Trend Curve")\nlabels: Jan, Feb, Mar, Apr, May, Jun\nseries: Volume [10, 25, 55, 95, 150, 240]\n:::\n')}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background border border-[var(--border)] hover:bg-surface-2 text-foreground font-semibold text-xs cursor-pointer"
+              >
+                <span>📈</span> Area Curve
+              </button>
+
+              <div className="h-6 w-px bg-[var(--border)]" />
+
+              <button
+                type="button"
+                onClick={() => handleInsertActiveSlideSnippet('\n:::bento\n:::box(span=2, bg="gradient")\n### 🚀 Main Feature Pillar\nCore value proposition and summary.\n:::\n:::box(span=1, bg="glass")\n### ⚡ Metric\n:::metric(value="99.99%", label="Uptime")\n:::\n:::\n')}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background border border-[var(--border)] hover:bg-surface-2 text-foreground font-semibold text-xs cursor-pointer"
+              >
+                <span>🍱</span> Bento Box
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleInsertActiveSlideSnippet('\n:::timeline\n:::milestone(date="Phase 1", title="Launch", status="completed")\nCore infrastructure.\n:::\n:::milestone(date="Phase 2", title="Scale", status="active")\nMarket adoption.\n:::\n:::milestone(date="Phase 3", title="Dominance", status="upcoming")\nGlobal expansion.\n:::\n:::\n')}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background border border-[var(--border)] hover:bg-surface-2 text-foreground font-semibold text-xs cursor-pointer"
+              >
+                <span>⏱️</span> Roadmap Timeline
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleInsertActiveSlideSnippet('\n:::callout(type="tip")\n💡 **Key Takeaway**: Strategic summary of the core insight on this slide.\n:::\n')}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background border border-[var(--border)] hover:bg-surface-2 text-foreground font-semibold text-xs cursor-pointer"
+              >
+                <span>💡</span> Callout Box
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleInsertActiveSlideSnippet('\n:::badge(text="Live Release", color="emerald", pulse=true)\n')}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background border border-[var(--border)] hover:bg-surface-2 text-foreground font-semibold text-xs cursor-pointer"
+              >
+                <span>🏷️</span> Pill Badge
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleInsertActiveSlideSnippet('\n| Feature | Option A | Option B |\n|---|---|---|\n| Scalability | 100k req/s | 1M req/s |\n| Latency | 15ms | 2ms |\n| Zero Downtime | ❌ | ✅ |\n')}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background border border-[var(--border)] hover:bg-surface-2 text-foreground font-semibold text-xs cursor-pointer"
+              >
+                <span>📄</span> Table
+              </button>
+            </div>
+          )}
+
+          {/* TAB 3: MEDIA & IMAGES */}
+          {activeRibbonTab === "media" && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setShowImageModal(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-xs cursor-pointer"
+              >
+                <span>🖼️</span> Insert Image from Stock / URL
+              </button>
+
+              <div className="h-6 w-px bg-[var(--border)]" />
+
+              <span className="text-[11px] font-semibold text-[var(--text-secondary)]">Stock Presets:</span>
+              {UNSPLASH_PRESETS.map((p) => (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => handleInsertActiveSlideSnippet(`\n![${p.label}](${p.url})\n`)}
+                  className="px-2.5 py-1 rounded-lg bg-background border border-[var(--border)] hover:bg-surface-2 text-foreground text-xs font-medium cursor-pointer"
+                >
+                  {p.label}
+                </button>
               ))}
-              {parsedSlides.length > 10 && (
-                <span className="text-[9px] text-[var(--text-tertiary)] pl-1">+{parsedSlides.length - 10}</span>
+            </div>
+          )}
+
+          {/* TAB 4: DESIGN & THEMES */}
+          {activeRibbonTab === "design" && (
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Theme Selector */}
+              <div className="flex items-center gap-1.5 bg-background rounded-lg border border-[var(--border)] px-2 py-1">
+                <span className="text-xs">🎨</span>
+                <span className="text-[11px] font-semibold text-[var(--text-secondary)]">Theme:</span>
+                <select
+                  value={theme}
+                  onChange={(e) => setTheme(e.target.value)}
+                  className="bg-transparent text-xs font-bold text-foreground outline-none cursor-pointer capitalize"
+                >
+                  {THEME_OPTIONS.map((t) => (
+                    <option key={t.id} value={t.id}>{t.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="h-6 w-px bg-[var(--border)]" />
+
+              {/* Slide Background Presets */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-semibold text-[var(--text-secondary)]">Slide Background:</span>
+                {[
+                  { name: "Dark", val: "gradient-dark", bg: "bg-[#1e1b4b]" },
+                  { name: "Indigo", val: "gradient-indigo", bg: "bg-indigo-950" },
+                  { name: "Sunset", val: "gradient-sunset", bg: "bg-rose-950" },
+                  { name: "Aurora", val: "gradient-aurora", bg: "bg-emerald-950" },
+                  { name: "Ocean", val: "gradient-ocean", bg: "bg-sky-950" },
+                  { name: "Grid", val: "pattern-grid", bg: "bg-neutral-800" },
+                  { name: "Default", val: "", bg: "bg-neutral-700" },
+                ].map((b) => (
+                  <button
+                    key={b.name}
+                    type="button"
+                    onClick={() => handleApplySlideBackground(b.val)}
+                    className={`w-6 h-6 rounded-lg ${b.bg} border border-white/20 hover:scale-110 transition-transform cursor-pointer shadow-xs`}
+                    title={`Apply ${b.name} background`}
+                  />
+                ))}
+
+                {/* Custom Color Input */}
+                <div className="flex items-center gap-1 pl-1">
+                  <input
+                    type="color"
+                    value={customSlideBg}
+                    onChange={(e) => {
+                      setCustomSlideBg(e.target.value);
+                      handleApplySlideBackground(e.target.value);
+                    }}
+                    className="w-6 h-6 rounded-lg cursor-pointer border border-[var(--border)] bg-transparent p-0"
+                    title="Pick custom solid slide color"
+                  />
+                </div>
+              </div>
+
+              <div className="h-6 w-px bg-[var(--border)]" />
+
+              {/* Typography */}
+              <div className="flex items-center gap-1.5 bg-background rounded-lg border border-[var(--border)] px-2 py-1">
+                <span className="text-xs">🔤</span>
+                <select
+                  value={headFont}
+                  onChange={(e) => setHeadFont(e.target.value)}
+                  className="bg-transparent text-xs text-foreground outline-none cursor-pointer"
+                  title="Head Font"
+                >
+                  <option value="">Head Font: Default</option>
+                  {FONT_OPTIONS.map((f) => (
+                    <option key={f.id} value={f.id}>{f.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1.5 bg-background rounded-lg border border-[var(--border)] px-2 py-1">
+                <select
+                  value={bodyFont}
+                  onChange={(e) => setBodyFont(e.target.value)}
+                  className="bg-transparent text-xs text-foreground outline-none cursor-pointer"
+                  title="Body Font"
+                >
+                  <option value="">Body Font: Default</option>
+                  {FONT_OPTIONS.map((f) => (
+                    <option key={f.id} value={f.id}>{f.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1.5 bg-background rounded-lg border border-[var(--border)] px-2 py-1">
+                <span className="text-xs">🖥️</span>
+                <select
+                  value={size}
+                  onChange={(e) => setSize(e.target.value)}
+                  className="bg-transparent text-xs text-foreground outline-none cursor-pointer uppercase"
+                  title="Typography Scale"
+                >
+                  {SIZE_OPTIONS.map((s) => (
+                    <option key={s.id} value={s.id}>{s.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: SLIDE SHOW & AUTO ADVANCE */}
+          {activeRibbonTab === "slideshow" && (
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Play / Pause Toggle */}
+              <button
+                type="button"
+                onClick={() => setIsAutoPlaying(!isAutoPlaying)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer ${
+                  isAutoPlaying
+                    ? "bg-amber-600 hover:bg-amber-500 text-white shadow-xs animate-pulse"
+                    : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs"
+                }`}
+              >
+                <span>{isAutoPlaying ? "⏸️ Pause Auto Slideshow" : "▶️ Start Auto Slideshow"}</span>
+              </button>
+
+              {/* Interval Selector */}
+              <div className="flex items-center gap-1.5 bg-background rounded-lg border border-[var(--border)] px-2 py-1">
+                <span className="text-xs">⏱️</span>
+                <span className="text-[11px] font-semibold text-[var(--text-secondary)]">Advance every:</span>
+                <select
+                  value={autoInterval}
+                  onChange={(e) => setAutoInterval(Number(e.target.value))}
+                  className="bg-transparent text-xs font-bold text-foreground outline-none cursor-pointer"
+                >
+                  <option value={3}>3 Seconds (Fast)</option>
+                  <option value={5}>5 Seconds (Standard)</option>
+                  <option value={8}>8 Seconds</option>
+                  <option value={10}>10 Seconds (Detailed)</option>
+                  <option value={15}>15 Seconds</option>
+                  <option value={30}>30 Seconds (Keynote)</option>
+                </select>
+              </div>
+
+              {/* Loop Toggle */}
+              <label className="flex items-center gap-1.5 text-xs text-foreground cursor-pointer font-medium">
+                <input
+                  type="checkbox"
+                  checked={autoLoop}
+                  onChange={(e) => setAutoLoop(e.target.checked)}
+                  className="rounded border-[var(--border)] text-brand-600 focus:ring-0 cursor-pointer"
+                />
+                <span>Loop Continuously</span>
+              </label>
+
+              <div className="h-6 w-px bg-[var(--border)]" />
+
+              {/* Grid Overview Trigger */}
+              <button
+                type="button"
+                onClick={() => setShowGridModal(true)}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-background border border-[var(--border)] hover:bg-surface-2 text-foreground font-semibold text-xs cursor-pointer"
+                title="Slide Grid Overview (G)"
+              >
+                <span>🔲</span> Slide Overview (G)
+              </button>
+            </div>
+          )}
+
+          {/* TAB 6: TRANSITIONS */}
+          {activeRibbonTab === "transitions" && (
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-1.5 bg-background rounded-lg border border-[var(--border)] px-2.5 py-1">
+                <span className="text-xs">🔀</span>
+                <span className="text-[11px] font-semibold text-[var(--text-secondary)]">Slide Transition:</span>
+                <select
+                  value={transition}
+                  onChange={(e) => setTransition(e.target.value)}
+                  className="bg-transparent text-xs font-bold text-foreground outline-none cursor-pointer capitalize"
+                >
+                  {TRANSITION_OPTIONS.map((t) => (
+                    <option key={t.id} value={t.id}>{t.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1.5 bg-background rounded-lg border border-[var(--border)] px-2.5 py-1">
+                <span className="text-xs">📐</span>
+                <span className="text-[11px] font-semibold text-[var(--text-secondary)]">Template:</span>
+                <select
+                  value={template}
+                  onChange={(e) => setTemplate(e.target.value)}
+                  className="bg-transparent text-xs font-bold text-foreground outline-none cursor-pointer capitalize"
+                >
+                  {TEMPLATE_OPTIONS.map((t) => (
+                    <option key={t.id} value={t.id}>{t.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleInsertActiveSlideSnippet(" {click}")}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-semibold text-xs cursor-pointer"
+              >
+                <span>✨</span> Add Stepwise Reveal ({'{click}'})
+              </button>
+            </div>
+          )}
+
+          {/* TAB 7: AI COPILOT */}
+          {activeRibbonTab === "ai" && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setShowAiModal(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-brand-600 to-indigo-600 text-white font-bold text-xs shadow-xs cursor-pointer"
+              >
+                <span>✨</span> Generate Full Deck with AI
+              </button>
+
+              <div className="h-6 w-px bg-[var(--border)]" />
+
+              <button
+                type="button"
+                onClick={() => handleTransformSlide("punchy")}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-background border border-[var(--border)] hover:bg-surface-2 text-foreground font-semibold text-xs cursor-pointer"
+              >
+                <span>⚡</span> Make Slide Punchier
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleTransformSlide("summarize")}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-background border border-[var(--border)] hover:bg-surface-2 text-foreground font-semibold text-xs cursor-pointer"
+              >
+                <span>🎯</span> Summarize
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleTransformSlide("generate-notes")}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-background border border-[var(--border)] hover:bg-surface-2 text-amber-600 dark:text-amber-400 font-semibold text-xs cursor-pointer"
+              >
+                <span>🎙️</span> Write Talking Points
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ─── Main PowerPoint Workspace Layout ──────────────────────── */}
+      <div className="flex flex-1 min-h-0 relative">
+        {/* 1. LEFT SIDEBAR: Slide Filmstrip Thumbnails (In Studio or Split View) */}
+        {(viewMode === "studio" || viewMode === "split") && (
+          <aside className="w-52 border-r border-[var(--border)] bg-surface/50 flex flex-col shrink-0">
+            <div className="p-2 border-b border-[var(--border)] flex items-center justify-between">
+              <span className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+                Slides ({slideSections.length})
+              </span>
+              <button
+                type="button"
+                onClick={() => handleAddSlide("blank")}
+                className="p-1 rounded-md bg-brand-50 hover:bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 font-bold text-xs cursor-pointer"
+                title="Add New Blank Slide"
+              >
+                ➕ Add
+              </button>
+            </div>
+
+            {/* Thumbnail Scroll List */}
+            <div className="flex-1 overflow-y-auto p-2 space-y-2">
+              {slideSections.map((sec, idx) => {
+                const isSelected = idx === currentSlideIndex;
+                const titleMatch = sec.match(/^#+\s+(.+)$/m);
+                const slideTitle = titleMatch ? titleMatch[1].replace(/\{.*?\}/g, "").trim() : `Slide ${idx + 1}`;
+
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => setCurrentSlideIndex(idx)}
+                    className={`group relative rounded-xl border p-2 cursor-pointer transition-all ${
+                      isSelected
+                        ? "border-brand-500 bg-brand-50/20 dark:bg-brand-900/20 shadow-md ring-2 ring-brand-500/20"
+                        : "border-[var(--border)] bg-background hover:border-brand-300 hover:bg-surface-2"
+                    }`}
+                  >
+                    {/* Slide Number Badge */}
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isSelected ? "bg-brand-600 text-white" : "bg-surface-2 text-[var(--text-secondary)]"}`}>
+                        {idx + 1}
+                      </span>
+                      <span className="text-[10px] text-[var(--text-tertiary)] truncate max-w-[120px] font-medium">
+                        {slideTitle}
+                      </span>
+                    </div>
+
+                    {/* Miniature Slide Preview Card */}
+                    <div className="aspect-[16/9] w-full rounded-lg bg-neutral-900 overflow-hidden border border-black/20 relative flex items-center justify-center p-2 shadow-inner">
+                      <div className="text-[8px] text-white/90 text-center font-bold line-clamp-3 leading-tight">
+                        {slideTitle}
+                      </div>
+                    </div>
+
+                    {/* Hover Actions Pill */}
+                    <div className="absolute top-1 right-1 hidden group-hover:flex items-center gap-1 bg-surface border border-[var(--border)] rounded-md p-0.5 shadow-md z-10">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMoveSlide(idx, idx - 1);
+                        }}
+                        disabled={idx === 0}
+                        className="p-1 hover:bg-surface-2 rounded text-[9px] disabled:opacity-30 cursor-pointer"
+                        title="Move Up"
+                      >
+                        ▲
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMoveSlide(idx, idx + 1);
+                        }}
+                        disabled={idx === slideSections.length - 1}
+                        className="p-1 hover:bg-surface-2 rounded text-[9px] disabled:opacity-30 cursor-pointer"
+                        title="Move Down"
+                      >
+                        ▼
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDuplicateSlide(idx);
+                        }}
+                        className="p-1 hover:bg-surface-2 rounded text-[9px] cursor-pointer"
+                        title="Duplicate Slide"
+                      >
+                        📋
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteSlide(idx);
+                        }}
+                        disabled={slideSections.length <= 1}
+                        className="p-1 hover:bg-rose-500 hover:text-white rounded text-[9px] disabled:opacity-30 cursor-pointer text-rose-500"
+                        title="Delete Slide"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </aside>
+        )}
+
+        {/* 2. CENTER STAGE CANVAS: Main 16:9 Presentation Studio Display */}
+        {viewMode !== "markdown" && (
+          <main className="flex-1 min-w-0 bg-neutral-950 flex flex-col relative overflow-hidden">
+            {/* Auto Slideshow Progress Bar */}
+            {isAutoPlaying && (
+              <div className="w-full h-1 bg-neutral-800 relative overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-brand-500 to-indigo-500 transition-all duration-100 ease-linear"
+                  style={{ width: `${autoProgress}%` }}
+                />
+              </div>
+            )}
+
+            {/* Top Canvas Bar with In-Slide Contextual Controls */}
+            <div className="h-9 bg-surface/80 backdrop-blur border-b border-[var(--border)] px-4 flex items-center justify-between text-xs text-[var(--text-secondary)] font-medium shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-foreground">Slide {currentSlideIndex + 1} of {slideSections.length}</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-2 text-[var(--text-tertiary)] font-mono">16:9 Widescreen</span>
+                {isAutoPlaying && (
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 font-bold animate-pulse flex items-center gap-1">
+                    <span>▶️</span> Auto ({autoInterval}s)
+                  </span>
+                )}
+              </div>
+
+              {/* Floating Contextual Quick Operations Toolbar for Selected Text or Element */}
+              {hasActiveSelection ? (
+                <div className="flex items-center gap-1 bg-brand-50/95 dark:bg-brand-950/90 border border-brand-500/40 px-2.5 py-0.5 rounded-lg text-xs animate-fade-in shadow-lg">
+                  <span className="text-[10px] font-bold text-brand-600 dark:text-brand-400 uppercase tracking-wider truncate max-w-[90px]">
+                    {selectedText ? "Text Selection" : selectedElement?.elType}
+                  </span>
+                  <div className="h-3 w-px bg-brand-500/30 mx-1" />
+
+                  {/* Numeric Font Size Selector (PowerPoint Style) */}
+                  <div className="flex items-center bg-background rounded border border-[var(--border)] p-0.5 gap-0.5">
+                    <select
+                      value={currentFontSize}
+                      onChange={(e) => handleApplyFormatting("size", Number(e.target.value))}
+                      className="bg-transparent text-[11px] font-bold text-foreground outline-none cursor-pointer"
+                      title="Font Size"
+                    >
+                      {FONT_SIZES.map((sz) => (
+                        <option key={sz} value={sz}>{sz}px</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => handleApplyFormatting("size", Math.min(96, currentFontSize + 4))}
+                      className="px-1 py-0.5 rounded text-[10px] font-bold hover:bg-surface-2 cursor-pointer"
+                      title="Increase Size"
+                    >
+                      A+
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleApplyFormatting("size", Math.max(12, currentFontSize - 4))}
+                      className="px-1 py-0.5 rounded text-[10px] font-bold hover:bg-surface-2 cursor-pointer"
+                      title="Decrease Size"
+                    >
+                      A-
+                    </button>
+                  </div>
+
+                  {/* Bold & Italic */}
+                  <div className="flex items-center bg-background rounded border border-[var(--border)] p-0.5 gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => handleApplyFormatting("bold")}
+                      className="px-1.5 py-0.5 rounded font-bold text-[10px] hover:bg-surface-2 cursor-pointer"
+                      title="Bold"
+                    >
+                      B
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleApplyFormatting("italic")}
+                      className="px-1.5 py-0.5 rounded italic text-[10px] hover:bg-surface-2 cursor-pointer"
+                      title="Italic"
+                    >
+                      I
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleApplyFormatting("underline")}
+                      className="px-1.5 py-0.5 rounded underline text-[10px] hover:bg-surface-2 cursor-pointer"
+                      title="Underline"
+                    >
+                      U
+                    </button>
+                  </div>
+
+                  {/* Text Color Swatches */}
+                  <div className="flex items-center gap-1 pl-1">
+                    {[
+                      { name: "White", code: "white", bg: "bg-white border border-neutral-300" },
+                      { name: "Emerald", code: "emerald", bg: "bg-emerald-500" },
+                      { name: "Cyan", code: "cyan", bg: "bg-cyan-500" },
+                      { name: "Amber", code: "amber", bg: "bg-amber-500" },
+                      { name: "Rose", code: "rose", bg: "bg-rose-500" },
+                    ].map((c) => (
+                      <button
+                        key={c.name}
+                        type="button"
+                        onClick={() => handleApplyFormatting("color", c.code)}
+                        className={`w-3.5 h-3.5 rounded-full ${c.bg} hover:scale-125 transition-transform cursor-pointer`}
+                        title={`Color: ${c.name}`}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Gradient & Highlight */}
+                  <button
+                    type="button"
+                    onClick={() => handleApplyFormatting("gradient", "sunset")}
+                    className="px-1.5 py-0.5 rounded bg-brand-500/20 text-brand-600 dark:text-brand-300 text-[10px] font-semibold hover:bg-brand-500/30 cursor-pointer"
+                    title="Apply Gradient"
+                  >
+                    🌈 Gradient
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleApplyFormatting("bg", "amber")}
+                    className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-300 text-[10px] font-semibold hover:bg-amber-500/30 cursor-pointer"
+                    title="Highlight Pill"
+                  >
+                    ✨ Highlight
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleApplyFormatting("reveal")}
+                    className="px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-[10px] font-semibold hover:bg-indigo-500/30 cursor-pointer"
+                    title="Add {click} reveal"
+                  >
+                    👆 Reveal
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleApplyFormatting("delete")}
+                    className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-600 dark:text-rose-400 text-[10px] font-semibold hover:bg-rose-500/30 cursor-pointer"
+                    title="Delete Selection"
+                  >
+                    🗑️ Remove
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-tertiary)]">
+                  <span>💡 Highlight any text or click any element to format its font size, color & style</span>
+                </div>
               )}
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsFullscreen(true)}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-brand-50 hover:bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 font-semibold text-[10px] cursor-pointer"
+                  title="Fullscreen (F)"
+                >
+                  ⤢ Fullscreen (F)
+                </button>
+              </div>
+            </div>
+
+            {/* 16:9 Canvas Stage Wrapper */}
+            <div className="flex-1 flex items-center justify-center p-4 lg:p-8 overflow-hidden relative">
+              <div className="w-full max-w-5xl aspect-[16/9] bg-black rounded-2xl shadow-2xl overflow-hidden border border-white/10 relative">
+                <iframe
+                  ref={iframeRef}
+                  srcDoc={shellHtml}
+                  className="w-full h-full border-0"
+                  title="Presentation Canvas"
+                  sandbox="allow-scripts allow-same-origin"
+                  onLoad={() => dispatchRender(iframeRef.current)}
+                />
+              </div>
+            </div>
+
+            {/* Bottom Floating Navigation Pill */}
+            <div className="h-10 bg-surface/90 backdrop-blur border-t border-[var(--border)] px-4 flex items-center justify-between text-xs shrink-0">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={currentSlideIndex <= 0}
+                  onClick={() => setCurrentSlideIndex((prev) => Math.max(0, prev - 1))}
+                  className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-surface-2 hover:bg-surface border border-[var(--border)] text-foreground font-semibold text-xs transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  ← Prev
+                </button>
+                <button
+                  type="button"
+                  disabled={currentSlideIndex >= slideSections.length - 1}
+                  onClick={() => setCurrentSlideIndex((prev) => Math.min(slideSections.length - 1, prev + 1))}
+                  className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-surface-2 hover:bg-surface border border-[var(--border)] text-foreground font-semibold text-xs transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  Next →
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1">
+                {slideSections.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setCurrentSlideIndex(i)}
+                    className={`w-2.5 h-2.5 rounded-full transition-all cursor-pointer ${
+                      i === currentSlideIndex
+                        ? "bg-brand-600 w-5"
+                        : "bg-neutral-400 dark:bg-neutral-700 hover:bg-neutral-500"
+                    }`}
+                    title={`Slide ${i + 1}`}
+                  />
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAutoPlaying(!isAutoPlaying)}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-semibold cursor-pointer ${
+                    isAutoPlaying
+                      ? "bg-amber-500/20 border-amber-500/30 text-amber-400"
+                      : "bg-surface-2 border-[var(--border)] text-foreground hover:bg-surface"
+                  }`}
+                  title="Toggle Auto Advance (A)"
+                >
+                  <span>{isAutoPlaying ? "⏸️ Pause Auto" : "▶️ Auto Play"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleTransformSlide("generate-notes")}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 font-semibold text-xs cursor-pointer"
+                  title="Generate AI Speaker Script"
+                >
+                  <span>🎙️</span>
+                  <span>AI Notes</span>
+                </button>
+              </div>
+            </div>
+          </main>
+        )}
+
+        {/* 3. RIGHT PANEL: Visual Slide & Element Property Inspector */}
+        {viewMode === "studio" && isInspectorOpen && (
+          <aside className="w-80 border-l border-[var(--border)] bg-surface flex flex-col shrink-0">
+            <div className="p-3 border-b border-[var(--border)] flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm">📋</span>
+                <h4 className="font-bold text-xs text-foreground">
+                  {hasActiveSelection ? "Selection Formatting" : `Slide ${currentSlideIndex + 1} Properties`}
+                </h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsInspectorOpen(false)}
+                className="text-[var(--text-tertiary)] hover:text-foreground text-xs p-1 cursor-pointer"
+                title="Collapse Inspector"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-3 space-y-4">
+              {/* SECTION A: SELECTED TEXT OR ELEMENT PROPERTIES (Real-time formatting) */}
+              {hasActiveSelection ? (
+                <div className="p-3 rounded-xl bg-brand-50/50 dark:bg-brand-950/40 border border-brand-500/30 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-brand-600 dark:text-brand-400 uppercase tracking-wider">
+                      🎯 {selectedText ? "Selected Text" : selectedElement?.elType}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedElement(null);
+                        setSelectedText(null);
+                      }}
+                      className="text-[10px] text-[var(--text-tertiary)] hover:text-foreground cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  </div>
+
+                  {/* Text Content Input */}
+                  <div>
+                    <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider block mb-1">
+                      Text Value
+                    </label>
+                    <input
+                      type="text"
+                      value={activeSelectedSnippet}
+                      onChange={(e) => handleApplyFormatting("replace-text", e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded-lg bg-background border border-[var(--border)] text-xs text-foreground outline-none focus:border-brand-500 font-medium"
+                    />
+                  </div>
+
+                  {/* Numeric Font Size (PowerPoint Slider & Dropdown) */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
+                        Font Size: {currentFontSize}px
+                      </label>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleApplyFormatting("size", Math.max(12, currentFontSize - 4))}
+                          className="px-1.5 py-0.5 rounded bg-background border border-[var(--border)] text-[10px] font-bold cursor-pointer hover:bg-surface-2"
+                        >
+                          -4
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleApplyFormatting("size", Math.min(96, currentFontSize + 4))}
+                          className="px-1.5 py-0.5 rounded bg-background border border-[var(--border)] text-[10px] font-bold cursor-pointer hover:bg-surface-2"
+                        >
+                          +4
+                        </button>
+                      </div>
+                    </div>
+                    <input
+                      type="range"
+                      min={12}
+                      max={96}
+                      step={2}
+                      value={currentFontSize}
+                      onChange={(e) => handleApplyFormatting("size", Number(e.target.value))}
+                      className="w-full accent-brand-600 cursor-pointer"
+                    />
+                    <div className="grid grid-cols-5 gap-1 pt-1">
+                      {[16, 24, 32, 48, 64].map((sz) => (
+                        <button
+                          key={sz}
+                          type="button"
+                          onClick={() => handleApplyFormatting("size", sz)}
+                          className={`py-0.5 rounded text-[10px] font-bold border transition-colors cursor-pointer ${
+                            currentFontSize === sz
+                              ? "bg-brand-600 text-white border-brand-600"
+                              : "bg-background border-[var(--border)] text-foreground hover:bg-surface-2"
+                          }`}
+                        >
+                          {sz}px
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Styles: Bold, Italic, Underline */}
+                  <div>
+                    <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider block mb-1">
+                      Font Styling
+                    </label>
+                    <div className="grid grid-cols-3 gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleApplyFormatting("bold")}
+                        className="py-1 rounded bg-background border border-[var(--border)] hover:bg-surface-2 text-xs font-bold text-foreground cursor-pointer"
+                      >
+                        Bold
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyFormatting("italic")}
+                        className="py-1 rounded bg-background border border-[var(--border)] hover:bg-surface-2 text-xs italic text-foreground cursor-pointer"
+                      >
+                        Italic
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyFormatting("underline")}
+                        className="py-1 rounded bg-background border border-[var(--border)] hover:bg-surface-2 text-xs underline text-foreground cursor-pointer"
+                      >
+                        Underline
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Text Colors */}
+                  <div>
+                    <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider block mb-1">
+                      Text Color & Highlight
+                    </label>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {[
+                        { name: "White", code: "white", bg: "bg-white" },
+                        { name: "Emerald", code: "emerald", bg: "bg-emerald-500" },
+                        { name: "Cyan", code: "cyan", bg: "bg-cyan-500" },
+                        { name: "Amber", code: "amber", bg: "bg-amber-500" },
+                        { name: "Rose", code: "rose", bg: "bg-rose-500" },
+                        { name: "Purple", code: "purple", bg: "bg-purple-500" },
+                        { name: "Gold", code: "gold", bg: "bg-amber-400" },
+                      ].map((c) => (
+                        <button
+                          key={c.name}
+                          type="button"
+                          onClick={() => handleApplyFormatting("color", c.code)}
+                          className={`w-6 h-6 rounded-lg ${c.bg} border border-black/20 hover:scale-110 transition-transform cursor-pointer shadow-xs`}
+                          title={`Color: ${c.name}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Gradient & Styles */}
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleApplyFormatting("gradient", "sunset")}
+                      className="py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-rose-500 text-white font-bold text-[10px] cursor-pointer"
+                    >
+                      🌈 Sunset Gradient
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleApplyFormatting("gradient", "aurora")}
+                      className="py-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-bold text-[10px] cursor-pointer"
+                    >
+                      🌌 Aurora Gradient
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleApplyFormatting("bg", "amber")}
+                      className="py-1.5 rounded-lg bg-amber-500 text-white font-bold text-[10px] cursor-pointer"
+                    >
+                      ✨ Amber Pill
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleApplyFormatting("bg", "emerald")}
+                      className="py-1.5 rounded-lg bg-emerald-500 text-white font-bold text-[10px] cursor-pointer"
+                    >
+                      🍃 Emerald Pill
+                    </button>
+                  </div>
+
+                  {/* Alignment */}
+                  <div>
+                    <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider block mb-1">
+                      Text Alignment
+                    </label>
+                    <div className="grid grid-cols-3 gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleApplyFormatting("align", "left")}
+                        className="py-1 rounded bg-background border border-[var(--border)] hover:bg-surface-2 text-xs font-semibold text-foreground cursor-pointer"
+                      >
+                        Left
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyFormatting("align", "center")}
+                        className="py-1 rounded bg-background border border-[var(--border)] hover:bg-surface-2 text-xs font-semibold text-foreground cursor-pointer"
+                      >
+                        Center
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyFormatting("align", "right")}
+                        className="py-1 rounded bg-background border border-[var(--border)] hover:bg-surface-2 text-xs font-semibold text-foreground cursor-pointer"
+                      >
+                        Right
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Delete & Clear */}
+                  <div className="flex items-center gap-1 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleApplyFormatting("clear")}
+                      className="flex-1 py-1.5 rounded-lg bg-surface-2 hover:bg-surface text-foreground font-semibold text-xs border border-[var(--border)] cursor-pointer"
+                    >
+                      Clear Styles
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleApplyFormatting("delete")}
+                      className="flex-1 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-600 dark:text-rose-400 font-bold text-xs cursor-pointer transition-colors"
+                    >
+                      🗑️ Delete
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Quick Layout Presets */}
+              <div>
+                <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider block mb-1.5">
+                  Change Slide Layout
+                </label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {Object.entries(SLIDE_TEMPLATES).map(([k, t]) => (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => updateActiveSlideMarkdown(t.snippet)}
+                      className="p-1.5 rounded-lg border border-[var(--border)] bg-background hover:bg-surface-2 text-left flex items-center gap-1.5 cursor-pointer text-xs"
+                    >
+                      <span>{t.icon}</span>
+                      <span className="font-medium text-[10px] truncate text-foreground">{t.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Active Slide Background Picker */}
+              <div className="border-t border-[var(--border)] pt-3">
+                <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider block mb-1.5">
+                  Slide Background
+                </label>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {[
+                    { name: "Dark", val: "gradient-dark", bg: "bg-[#1e1b4b]" },
+                    { name: "Indigo", val: "gradient-indigo", bg: "bg-indigo-950" },
+                    { name: "Sunset", val: "gradient-sunset", bg: "bg-rose-950" },
+                    { name: "Aurora", val: "gradient-aurora", bg: "bg-emerald-950" },
+                    { name: "Ocean", val: "gradient-ocean", bg: "bg-sky-950" },
+                    { name: "Grid", val: "pattern-grid", bg: "bg-neutral-800" },
+                    { name: "Default", val: "", bg: "bg-neutral-700" },
+                  ].map((b) => (
+                    <button
+                      key={b.name}
+                      type="button"
+                      onClick={() => handleApplySlideBackground(b.val)}
+                      className={`w-7 h-7 rounded-lg ${b.bg} border border-white/20 hover:scale-110 transition-transform cursor-pointer shadow-xs`}
+                      title={`Apply ${b.name}`}
+                    />
+                  ))}
+                  <input
+                    type="color"
+                    value={customSlideBg}
+                    onChange={(e) => {
+                      setCustomSlideBg(e.target.value);
+                      handleApplySlideBackground(e.target.value);
+                    }}
+                    className="w-7 h-7 rounded-lg cursor-pointer border border-[var(--border)] bg-transparent p-0"
+                    title="Custom Solid Background"
+                  />
+                </div>
+              </div>
+
+              {/* Slide Content Direct Markdown / Form Editor */}
+              <div className="border-t border-[var(--border)] pt-3">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
+                    Slide Content
+                  </label>
+                  <span className="text-[9px] text-brand-500 font-semibold">Live Synced</span>
+                </div>
+                <textarea
+                  value={activeSlideMarkdown}
+                  onChange={(e) => updateActiveSlideMarkdown(e.target.value)}
+                  rows={8}
+                  className="w-full p-2.5 rounded-xl bg-background border border-[var(--border)] text-xs text-foreground font-mono leading-relaxed outline-none focus:border-brand-500 transition-colors resize-y"
+                  placeholder="Write slide markdown or use the toolbar..."
+                />
+              </div>
+
+              {/* Speaker Notes Script */}
+              <div className="border-t border-[var(--border)] pt-3">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[10px] font-bold text-amber-500 uppercase tracking-wider flex items-center gap-1">
+                    <span>🎙️</span> Speaker Script
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => handleTransformSlide("generate-notes")}
+                    className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold hover:underline cursor-pointer"
+                  >
+                    Generate AI Script
+                  </button>
+                </div>
+                <textarea
+                  value={currentNotes}
+                  onChange={(e) => {
+                    const notes = e.target.value;
+                    let current = activeSlideMarkdown;
+                    current = current.replace(/<!--\s*notes?:\s*[\s\S]*?\s*-->/gi, "");
+                    if (notes.trim()) {
+                      current = `${current.trim()}\n\n<!-- note:\n${notes.trim()}\n-->`;
+                    }
+                    updateActiveSlideMarkdown(current);
+                  }}
+                  rows={3}
+                  className="w-full p-2.5 rounded-xl bg-background border border-[var(--border)] text-xs text-foreground leading-relaxed outline-none focus:border-amber-500 transition-colors resize-y"
+                  placeholder="Private talking points and presenter cues..."
+                />
+              </div>
+            </div>
+          </aside>
+        )}
+
+        {/* 4. CODE EDITOR: Shown when in "markdown" or "split" mode */}
+        {(viewMode === "markdown" || viewMode === "split") && (
+          <div className={`${viewMode === "markdown" ? "flex-1" : "w-1/2"} border-r border-[var(--border)] flex flex-col bg-background`}>
+            <AiCopilotBar
+              onTransform={handleTransformSlide}
+              onOpenGenerator={() => setShowAiModal(true)}
+            />
+            <EditorToolbar editorRef={editorRef} />
+            <div className="flex-1 min-h-0">
+              <MarkdownEditor
+                ref={editorRef}
+                initialValue={markdown}
+                onChange={(val) => setMarkdown(val)}
+              />
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* ─── AI Generator Modal ─────────────────────────────────────── */}
@@ -1016,6 +2409,185 @@ export function PlaygroundShell() {
           onClose={() => setShowAiModal(false)}
           onApply={handleApplyAiGenerated}
         />
+      )}
+
+      {/* ─── Insert Image / Media Modal ─────────────────────────────── */}
+      {showImageModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+          <div className="w-full max-w-lg rounded-2xl border border-[var(--border)] bg-surface p-5 shadow-2xl text-foreground space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border)]">
+              <h3 className="font-bold text-base flex items-center gap-2">
+                <span>🖼️</span> Insert Image into Slide
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowImageModal(false)}
+                className="text-[var(--text-tertiary)] hover:text-foreground text-sm cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold block mb-1">Image URL / Web Link</label>
+              <input
+                type="url"
+                value={customImageUrl}
+                onChange={(e) => setCustomImageUrl(e.target.value)}
+                placeholder="https://images.unsplash.com/photo-..."
+                className="w-full px-3 py-2 rounded-xl bg-background border border-[var(--border)] text-xs text-foreground outline-none focus:border-brand-500"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold block mb-2">Or Choose from Curated Presentation Stock</label>
+              <div className="grid grid-cols-3 gap-2">
+                {UNSPLASH_PRESETS.map((p) => (
+                  <button
+                    key={p.label}
+                    type="button"
+                    onClick={() => {
+                      handleInsertActiveSlideSnippet(`\n![${p.label}](${p.url})\n`);
+                      setShowImageModal(false);
+                    }}
+                    className="p-2 rounded-xl border border-[var(--border)] bg-background hover:bg-surface-2 text-center text-xs font-medium cursor-pointer"
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border)]">
+              <button
+                type="button"
+                onClick={() => setShowImageModal(false)}
+                className="px-4 py-2 rounded-xl border border-[var(--border)] hover:bg-surface-2 text-xs font-semibold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (customImageUrl.trim()) {
+                    handleInsertActiveSlideSnippet(`\n![Image](${customImageUrl.trim()})\n`);
+                    setCustomImageUrl("");
+                    setShowImageModal(false);
+                  }
+                }}
+                disabled={!customImageUrl.trim()}
+                className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition-colors cursor-pointer disabled:opacity-40"
+              >
+                Insert Image
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Slide Grid Overview Modal (G) ─────────────────────────── */}
+      {showGridModal && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col p-6 animate-fade-in">
+          <div className="flex items-center justify-between pb-4 border-b border-white/10 text-white">
+            <div className="flex items-center gap-2">
+              <span className="text-base font-bold">🔲 All Slides Grid Overview</span>
+              <span className="text-xs px-2 py-0.5 rounded bg-brand-500/30 text-brand-300">
+                {slideSections.length} Slides
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowGridModal(false)}
+              className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold cursor-pointer"
+            >
+              ✕ Close (Esc)
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4 overflow-y-auto flex-1">
+            {slideSections.map((sec, idx) => {
+              const titleMatch = sec.match(/^#+\s+(.+)$/m);
+              const slideTitle = titleMatch ? titleMatch[1].replace(/\{.*?\}/g, "").trim() : `Slide ${idx + 1}`;
+              const isSelected = idx === currentSlideIndex;
+
+              return (
+                <div
+                  key={idx}
+                  onClick={() => {
+                    setCurrentSlideIndex(idx);
+                    setShowGridModal(false);
+                  }}
+                  className={`aspect-[16/9] rounded-xl p-4 bg-neutral-900 border cursor-pointer transition-all hover:scale-105 flex flex-col justify-between ${
+                    isSelected ? "border-brand-500 ring-2 ring-brand-500" : "border-white/10 hover:border-white/30"
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-xs text-white/50">
+                    <span className="font-bold">#{idx + 1}</span>
+                    {isSelected && <span className="text-[10px] text-brand-400 font-bold">Active</span>}
+                  </div>
+                  <div className="text-sm font-bold text-white text-center line-clamp-3">
+                    {slideTitle}
+                  </div>
+                  <div className="text-[10px] text-white/40 text-right">Click to Jump</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ─── Keyboard Shortcuts Cheatsheet Modal (?) ──────────────── */}
+      {showShortcutsModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+          <div className="w-full max-w-lg rounded-2xl border border-[var(--border)] bg-surface p-5 shadow-2xl text-foreground">
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border)]">
+              <h3 className="font-bold text-base flex items-center gap-2">
+                <span>⌨️</span> Keyboard Shortcuts
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowShortcutsModal(false)}
+                className="text-[var(--text-tertiary)] hover:text-foreground text-sm cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-4 text-xs">
+              {[
+                { key: "Space / → / ↓", desc: "Next Slide / Step" },
+                { key: "← / ↑", desc: "Previous Slide" },
+                { key: "F", desc: "Toggle Fullscreen" },
+                { key: "P", desc: "Presenter Pro Cockpit" },
+                { key: "G", desc: "Slide Grid Overview" },
+                { key: "A", desc: "Toggle Auto Slideshow" },
+                { key: "B", desc: "Black Screen Pause" },
+                { key: "W", desc: "White Screen Pause" },
+                { key: "Home / End", desc: "First / Last Slide" },
+                { key: "Esc", desc: "Exit Fullscreen / Modals" },
+                { key: "Highlight Text", desc: "Show Mini Formatting Bar" },
+                { key: "? / H", desc: "Shortcuts Help" },
+              ].map((s) => (
+                <div key={s.key} className="flex items-center justify-between p-2 rounded-lg bg-background border border-[var(--border)]">
+                  <span className="font-mono font-bold text-brand-600 dark:text-brand-400 bg-surface-2 px-1.5 py-0.5 rounded text-[11px]">
+                    {s.key}
+                  </span>
+                  <span className="text-[var(--text-secondary)]">{s.desc}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-5 text-center">
+              <button
+                type="button"
+                onClick={() => setShowShortcutsModal(false)}
+                className="w-full py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs transition-colors cursor-pointer"
+              >
+                Got It
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ─── Presenter Pro Cockpit View Modal ──────────────────────── */}
@@ -1100,7 +2672,7 @@ export function PlaygroundShell() {
                   <span>📝</span> Speaker Talking Script
                 </span>
                 <div className="flex-1 overflow-y-auto font-sans text-xs text-white/90 leading-relaxed whitespace-pre-wrap bg-black/40 p-3 rounded-lg border border-white/5">
-                  {currentNotes}
+                  {currentNotes || "No speaker notes written for this slide. Click 'Write Talking Points' to generate them."}
                 </div>
               </div>
 
@@ -1131,7 +2703,19 @@ export function PlaygroundShell() {
       {/* ─── Fullscreen In-Browser Presentation View ────────────────── */}
       {isFullscreen && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col">
-          <div className="absolute top-3 right-3 z-50">
+          <div className="absolute top-3 right-3 z-50 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsAutoPlaying(!isAutoPlaying)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold backdrop-blur border transition-all cursor-pointer ${
+                isAutoPlaying
+                  ? "bg-amber-600 text-white border-amber-400"
+                  : "bg-black/60 hover:bg-black text-white border-white/20"
+              }`}
+            >
+              {isAutoPlaying ? "⏸️ Pause Auto" : "▶️ Auto Play (A)"}
+            </button>
+
             <button
               type="button"
               onClick={() => setIsFullscreen(false)}

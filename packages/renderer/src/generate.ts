@@ -37,39 +37,7 @@ import {
 } from "./rich-content.js";
 import { FRAGMENT_CSS, FRAGMENT_RUNTIME } from "./fragments.js";
 
-export {
-  DECOR_CSS,
-  decorOf,
-  googleFontsHref,
-  hljsHref,
-  hljsMapJson,
-  decorMapJson,
-  themeRootCss,
-  themeSwitchableCss,
-  themeSummaries,
-  resolveThemeName,
-  findTheme,
-  THEME_IDS,
-  THEMES,
-  DEFAULT_THEME,
-  type ThemeName,
-  sizeRootCss,
-  sizeSwitchableCss,
-  sizeSummaries,
-  resolveSizeName,
-  findSize,
-  SIZE_IDS,
-  DEFAULT_SIZE,
-  type SizeName,
-  fontOverrideCss,
-  fontSummaries,
-  fontListing,
-  fontName,
-  findFont,
-  FONT_IDS,
-  FONTS,
-  type FontSummary,
-} from "./themes.js";
+export { DECOR_CSS, decorOf, googleFontsHref };
 
 function escAttr(str: string): string {
   return str
@@ -80,6 +48,26 @@ function escAttr(str: string): string {
 }
 
 export function renderSlide(slide: Slide, index: number): string {
+  let customBgLayer = "";
+  if (slide.bg) {
+    const bgVal = slide.bg.trim();
+    if (bgVal.startsWith("gradient-") || bgVal.startsWith("pattern-")) {
+      customBgLayer = `<div class="slide-bg-layer slide-bg-${bgVal}" aria-hidden="true"></div>`;
+    } else if (
+      bgVal.startsWith("#") ||
+      bgVal.startsWith("rgb") ||
+      bgVal.startsWith("hsl") ||
+      bgVal.startsWith("linear-") ||
+      bgVal.startsWith("radial-")
+    ) {
+      const style =
+        bgVal.includes("gradient") || bgVal.startsWith("linear-") || bgVal.startsWith("radial-")
+          ? `background: ${bgVal}`
+          : `background-color: ${bgVal}`;
+      customBgLayer = `<div class="slide-bg-layer" style="${style}" aria-hidden="true"></div>`;
+    }
+  }
+
   const bgStyle = slide.bgImage
     ? ` style="--slide-bg-url: url('${escAttr(slide.bgImage.src)}'); --slide-bg-opacity: ${slide.bgImage.opacity};"`
     : "";
@@ -110,7 +98,8 @@ export function renderSlide(slide: Slide, index: number): string {
     innerHtml = `<div class="slide__content">${slide.html}</div>`;
   }
 
-  return `<div class="slide${slide.bgImage ? " slide--has-bg" : ""}" data-index="${index}"${bgStyle}>
+  return `<div class="slide${slide.bgImage ? " slide--has-bg" : ""}${slide.bg ? " slide--has-custom-bg" : ""}" data-index="${index}"${bgStyle}>
+  ${customBgLayer}
   ${bgLayer}
   ${innerHtml}
 </div>`;

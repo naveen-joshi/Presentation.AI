@@ -280,115 +280,138 @@ function renderSvgChart(type: string, title: string, content: string): string {
   return `<div class="slide-chart-box">${title ? `<div class="chart-header"><h4 class="chart-title">${title}</h4></div>` : ""}<div class="chart-svg-wrap"><svg viewBox="0 0 ${svgWidth} ${svgHeight}" class="slide-chart-svg" preserveAspectRatio="xMidYMid meet">${svgInner}</svg></div></div>`;
 }
 
+function parseAttr(args: string | undefined | null, key: string, defaultValue = ""): string {
+  if (!args) return defaultValue;
+  const regex = new RegExp(`(?:^|[\\s,(])${key}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s,)]+))`, "i");
+  const match = args.match(regex);
+  if (!match) return defaultValue;
+  return (match[1] ?? match[2] ?? match[3] ?? defaultValue).trim();
+}
+
 function preprocessDirectives(md: string): string {
   let res = md;
 
-  // 1. Interactive Charts: :::chart(type="bar|line|donut|area", title="...") ... :::
-  res = res.replace(/:::chart(?:\((.*?)\))?[ \t]*\n([\s\S]*?)\n[ \t]*:::/g, (_, args: string | undefined, content: string) => {
-    const a = args || "";
-    const typeMatch = a.match(/type="([^"]*)"/);
-    const titleMatch = a.match(/title="([^"]*)"/);
-    const type = typeMatch ? typeMatch[1] : "bar";
-    const title = titleMatch ? titleMatch[1] : "";
+  // 1. Inner Leaves: Cards & Bento Boxes (parse before grids so nested items are rendered cleanly)
+  res = res.replace(/(?:^|\n)[ \t]*:::card(?:\((.*?)\))?[ \t]*\n([\s\S]*?)\n[ \t]*:::/g, (_, args: string | undefined, content: string) => {
+    const title = parseAttr(args, "title", "");
+    const icon = parseAttr(args, "icon", "");
+    return `\n<div class="slide-card"><div class="slide-card-header">${icon ? `<span class="slide-card-icon">${icon}</span>` : ""}${title ? `<h4 class="slide-card-title">${title}</h4>` : ""}</div><div class="slide-card-body">\n\n${content}\n\n</div></div>\n`;
+  });
+
+  res = res.replace(/(?:^|\n)[ \t]*:::box(?:\((.*?)\))?[ \t]*\n([\s\S]*?)\n[ \t]*:::/g, (_, args: string | undefined, content: string) => {
+    const spanVal = parseAttr(args, "span", "1");
+    const rowVal = parseAttr(args, "row", "");
+    const bgVal = parseAttr(args, "bg", "glass");
+    const span = `col-span-${spanVal}`;
+    const row = rowVal ? `row-span-${rowVal}` : "";
+    const bg = `bento-bg-${bgVal}`;
+    return `\n<div class="bento-box ${span} ${row} ${bg}">\n\n${content}\n\n</div>\n`;
+  });
+
+  res = res.replace(/(?:^|\n)[ \t]*:::milestone\((.*?)\)[ \t]*\n([\s\S]*?)\n[ \t]*:::/g, (_, args: string, content: string) => {
+    const date = parseAttr(args, "date", "Phase");
+    const title = parseAttr(args, "title", "");
+    const status = parseAttr(args, "status", "upcoming");
+    return `\n<div class="timeline-milestone milestone-${status}"><div class="milestone-badge">${date}</div><div class="milestone-body"><h4 class="milestone-title">${title}</h4><div class="milestone-desc">\n\n${content}\n\n</div></div></div>\n`;
+  });
+
+  res = res.replace(/(?:^|\n)[ \t]*:::col[ \t]*\n([\s\S]*?)\n[ \t]*:::/g, (_, content: string) => {
+    return `\n<div class="slide-layout-col">\n\n${content}\n\n</div>\n`;
+  });
+
+  // 2. Outer Containers: Grids, Bento, Timelines, Layouts
+  res = res.replace(/(?:^|\n)[ \t]*:::grid(?:\((.*?)\))?[ \t]*\n([\s\S]*?)\n[ \t]*:::/g, (_, args: string | undefined, content: string) => {
+    const cols = parseAttr(args, "cols", "2");
+    return `\n<div class="slide-grid grid-cols-${cols}">\n\n${content}\n\n</div>\n`;
+  });
+
+  res = res.replace(/(?:^|\n)[ \t]*:::bento[ \t]*\n([\s\S]*?)\n[ \t]*:::/g, (_, content: string) => {
+    return `\n<div class="slide-bento-grid">\n\n${content}\n\n</div>\n`;
+  });
+
+  res = res.replace(/(?:^|\n)[ \t]*:::timeline[ \t]*\n([\s\S]*?)\n[ \t]*:::/g, (_, content: string) => {
+    return `\n<div class="slide-timeline">\n\n${content}\n\n</div>\n`;
+  });
+
+  res = res.replace(/(?:^|\n)[ \t]*:::layout\((.*?)\)[ \t]*\n([\s\S]*?)\n[ \t]*:::/g, (_, args: string, content: string) => {
+    const layout = parseAttr(args, "type", args.replace(/[()]/g, "").trim()) || "split";
+    return `\n<div class="slide-layout slide-layout-${layout}">\n\n${content}\n\n</div>\n`;
+  });
+
+  // 3. Standalone Block Containers: Charts, Terminal, Callouts
+  res = res.replace(/(?:^|\n)[ \t]*:::chart(?:\((.*?)\))?[ \t]*\n([\s\S]*?)\n[ \t]*:::/g, (_, args: string | undefined, content: string) => {
+    const type = parseAttr(args, "type", "bar");
+    const title = parseAttr(args, "title", "");
     return renderSvgChart(type, title, content);
   });
 
-  // 2. Bento Grid: :::bento ... ::: and :::box(span=2, row=2, bg="gradient") ... :::
-  res = res.replace(/:::bento[ \t]*\n([\s\S]*?)\n[ \t]*:::/g, (_, content: string) => {
-    return `<div class="slide-bento-grid">\n\n${content}\n\n</div>`;
+  res = res.replace(/(?:^|\n)[ \t]*:::callout(?:\((.*?)\))?[ \t]*\n([\s\S]*?)\n[ \t]*:::/g, (_, args: string | undefined, content: string) => {
+    const t = parseAttr(args, "type", "tip");
+    const icon = t === "warning" ? "⚠️" : t === "important" ? "⚡" : t === "info" ? "ℹ️" : "💡";
+    return `\n<div class="slide-callout callout-${t}"><div class="callout-icon">${icon}</div><div class="callout-body">\n\n${content}\n\n</div></div>\n`;
   });
 
-  res = res.replace(/:::box(?:\((.*?)\))?[ \t]*\n([\s\S]*?)\n[ \t]*:::/g, (_, args: string | undefined, content: string) => {
-    const a = args || "";
-    const spanMatch = a.match(/span=([1234])/);
-    const rowMatch = a.match(/row=([1234])/);
-    const bgMatch = a.match(/bg="([^"]*)"/);
-    const span = spanMatch ? `col-span-${spanMatch[1]}` : "col-span-1";
-    const row = rowMatch ? `row-span-${rowMatch[1]}` : "";
-    const bg = bgMatch ? `bento-bg-${bgMatch[1]}` : "bento-bg-glass";
-    return `<div class="bento-box ${span} ${row} ${bg}">\n\n${content}\n\n</div>`;
+  res = res.replace(/(?:^|\n)[ \t]*:::terminal(?:\((.*?)\))?[ \t]*\n([\s\S]*?)\n[ \t]*:::/g, (_, args: string | undefined, content: string) => {
+    const title = parseAttr(args, "title", "terminal");
+    return `\n<div class="slide-terminal"><div class="terminal-header"><span class="terminal-dot red"></span><span class="terminal-dot yellow"></span><span class="terminal-dot green"></span><span class="terminal-title">${title}</span></div><div class="terminal-body">\n\n${content}\n\n</div></div>\n`;
   });
 
-  // 3. Interactive Timeline & Milestones: :::timeline ... :::
-  res = res.replace(/:::timeline[ \t]*\n([\s\S]*?)\n[ \t]*:::/g, (_, content: string) => {
-    return `<div class="slide-timeline">\n\n${content}\n\n</div>`;
-  });
-
-  res = res.replace(/:::milestone\((.*?)\)[ \t]*\n([\s\S]*?)\n[ \t]*:::/g, (_, args: string, content: string) => {
-    const dateMatch = args.match(/date="([^"]*)"/);
-    const titleMatch = args.match(/title="([^"]*)"/);
-    const statusMatch = args.match(/status="([^"]*)"/);
-    const date = dateMatch ? dateMatch[1] : "Phase";
-    const title = titleMatch ? titleMatch[1] : "";
-    const status = statusMatch ? statusMatch[1] : "upcoming";
-    return `<div class="timeline-milestone milestone-${status}"><div class="milestone-badge">${date}</div><div class="milestone-body"><h4 class="milestone-title">${title}</h4><div class="milestone-desc">\n\n${content}\n\n</div></div></div>`;
-  });
-
-  // 4. Badges: :::badge(text="Live", color="emerald", pulse=true)
+  // 4. Inline Components: Badges, Metrics, Header, Footer, Watermark, Dividers
   res = res.replace(/:::badge\((.*?)\)/g, (_, args: string) => {
-    const textMatch = args.match(/text="([^"]*)"/);
-    const colorMatch = args.match(/color="([^"]*)"/);
-    const pulseMatch = args.match(/pulse=(true|false)/);
-    const text = textMatch ? textMatch[1] : "Badge";
-    const color = colorMatch ? colorMatch[1] : "brand";
-    const isPulse = pulseMatch && pulseMatch[1] === "true";
+    const text = parseAttr(args, "text", "Badge");
+    const color = parseAttr(args, "color", "brand");
+    const isPulse = parseAttr(args, "pulse", "false") === "true";
     return `<span class="slide-badge badge-${color}">${isPulse ? '<span class="badge-pulse-dot"></span>' : ""}${text}</span>`;
   });
 
-  // 5. Metric: :::metric(value="+340%", label="Growth", sub="vs Q3")
   res = res.replace(/:::metric\((.*?)\)/g, (_, args: string) => {
-    const valueMatch = args.match(/value="([^"]*)"/);
-    const labelMatch = args.match(/label="([^"]*)"/);
-    const subMatch = args.match(/sub="([^"]*)"/);
-    const val = valueMatch ? valueMatch[1] : "";
-    const lbl = labelMatch ? labelMatch[1] : "";
-    const sub = subMatch ? subMatch[1] : "";
+    const val = parseAttr(args, "value", "");
+    const lbl = parseAttr(args, "label", "");
+    const sub = parseAttr(args, "sub", "");
     return `<div class="slide-metric"><div class="metric-val">${val}</div><div class="metric-label">${lbl}</div>${sub ? `<div class="metric-sub">${sub}</div>` : ""}</div>`;
   });
 
-  // 6. Callout: :::callout(type="tip") ... :::
-  res = res.replace(/:::callout(?:\((?:type="([^"]*)")?\))?[ \t]*\n([\s\S]*?)\n[ \t]*:::/g, (_, type: string | undefined, content: string) => {
-    const t = type || "tip";
-    const icon = t === "warning" ? "⚠️" : t === "important" ? "⚡" : t === "info" ? "ℹ️" : "💡";
-    return `<div class="slide-callout callout-${t}"><div class="callout-icon">${icon}</div><div class="callout-body">\n\n${content}\n\n</div></div>`;
+  res = res.replace(/:::header\((.*?)\)/g, (_, args: string) => {
+    const title = parseAttr(args, "title", "");
+    const category = parseAttr(args, "category", "");
+    const logo = parseAttr(args, "logo", "");
+    return `<div class="slide-header-bar"><div class="header-left">${logo ? `<span class="header-logo">${logo}</span>` : ""}<span class="header-title">${title}</span></div>${category ? `<span class="header-category">${category}</span>` : ""}</div>`;
   });
 
-  // 7. Card: :::card(title="Title", icon="Icon") ... :::
-  res = res.replace(/:::card\((.*?)\)[ \t]*\n([\s\S]*?)\n[ \t]*:::/g, (_, args: string, content: string) => {
-    const titleMatch = args.match(/title="([^"]*)"/);
-    const iconMatch = args.match(/icon="([^"]*)"/);
-    const title = titleMatch ? titleMatch[1] : "";
-    const icon = iconMatch ? iconMatch[1] : "";
-    return `<div class="slide-card"><div class="slide-card-header">${icon ? `<span class="slide-card-icon">${icon}</span>` : ""}${title ? `<h4 class="slide-card-title">${title}</h4>` : ""}</div><div class="slide-card-body">\n\n${content}\n\n</div></div>`;
+  res = res.replace(/:::footer\((.*?)\)/g, (_, args: string) => {
+    const left = parseAttr(args, "left", "");
+    const center = parseAttr(args, "center", "");
+    const right = parseAttr(args, "right", "");
+    return `<div class="slide-footer-bar"><div class="footer-left">${left}</div>${center ? `<div class="footer-center">${center}</div>` : ""}<div class="footer-right">${right}</div></div>`;
   });
 
-  // 8. Grid: :::grid(cols=3) ... :::
-  res = res.replace(/:::grid(?:\((?:cols=([234]))?\))?[ \t]*\n([\s\S]*?)\n[ \t]*:::/g, (_, cols: string | undefined, content: string) => {
-    const c = cols || "2";
-    return `<div class="slide-grid grid-cols-${c}">\n\n${content}\n\n</div>`;
+  res = res.replace(/:::watermark\((.*?)\)/g, (_, args: string) => {
+    const text = parseAttr(args, "text", "CONFIDENTIAL");
+    return `<div class="slide-watermark">${text}</div>`;
   });
 
-  // 9. Terminal: :::terminal(title="bash") ... :::
-  res = res.replace(/:::terminal(?:\((?:title="([^"]*)")?\))?[ \t]*\n([\s\S]*?)\n[ \t]*:::/g, (_, title: string | undefined, content: string) => {
-    return `<div class="slide-terminal"><div class="terminal-header"><span class="terminal-dot red"></span><span class="terminal-dot yellow"></span><span class="terminal-dot green"></span><span class="terminal-title">${title || "terminal"}</span></div><div class="terminal-body">\n\n${content}\n\n</div></div>`;
+  res = res.replace(/:::divider(?:\((.*?)\))?/g, (_, args: string | undefined) => {
+    const type = parseAttr(args, "type", "gradient");
+    return `<div class="slide-divider divider-${type}"></div>`;
   });
 
-  // 10. Stepwise Reveal Fragments ({click} / {v-click})
+  // 5. Dynamic Text Spans & Fragments
   res = res.replace(/\{v?-?click\}/gi, '<span class="slide-fragment" data-fragment="true"></span>');
 
-  // 11. Dynamic Text Colors, Backgrounds, and Gradients
-  res = res.replace(/\{color:([#a-zA-Z0-9_-]+)\}([\s\S]*?)\{\/color\}/g, (_, color: string, text: string) => {
-    if (color.startsWith("#") || color.startsWith("rgb")) {
-      return `<span class="slide-text-color" style="color: ${color}">${text}</span>`;
+  res = res.replace(/\{color:([#a-zA-Z0-9_,-]+)\}([\s\S]*?)\{\/color\}/g, (_, color: string, text: string) => {
+    const c = color.trim();
+    if (c.startsWith("#") || c.startsWith("rgb") || c.startsWith("hsl")) {
+      return `<span class="slide-text-color" style="color: ${c}">${text}</span>`;
     }
-    return `<span class="slide-text-color text-color-${color}">${text}</span>`;
+    return `<span class="slide-text-color text-color-${c}">${text}</span>`;
   });
 
-  res = res.replace(/\{bg:([#a-zA-Z0-9_-]+)\}([\s\S]*?)\{\/bg\}/g, (_, bg: string, text: string) => {
-    if (bg.startsWith("#") || bg.startsWith("rgb")) {
-      return `<span class="slide-text-bg" style="background-color: ${bg}">${text}</span>`;
+  res = res.replace(/\{bg:([#a-zA-Z0-9_,-]+)\}([\s\S]*?)\{\/bg\}/g, (_, bg: string, text: string) => {
+    const b = bg.trim();
+    if (b.startsWith("#") || b.startsWith("rgb") || b.startsWith("hsl")) {
+      return `<span class="slide-text-bg" style="background-color: ${b}">${text}</span>`;
     }
-    return `<span class="slide-text-bg bg-${bg}">${text}</span>`;
+    return `<span class="slide-text-bg bg-${b}">${text}</span>`;
   });
 
   res = res.replace(/\{gradient:([a-zA-Z0-9_-]+)\}([\s\S]*?)\{\/gradient\}/g, (_, grad: string, text: string) => {
@@ -400,49 +423,14 @@ function preprocessDirectives(md: string): string {
     return `<span class="slide-custom-font" style="font-family: '${cleanFont}', var(--font-display), sans-serif">${text}</span>`;
   });
 
-  // 12. Reusable Layout Masters: :::layout(split|cover|quote|showcase) ... ::: & :::col ... :::
-  res = res.replace(/:::layout\((split|cover|quote|showcase)\)[ \t]*\n([\s\S]*?)\n[ \t]*:::/g, (_, layout: string, content: string) => {
-    return `<div class="slide-layout slide-layout-${layout}">\n\n${content}\n\n</div>`;
+  res = res.replace(/\{size:([0-9a-zA-Z._-]+)\}([\s\S]*?)\{\/size\}/g, (_, sizeVal: string, text: string) => {
+    const s = sizeVal.trim();
+    const cssSize = /^[0-9]+$/.test(s) ? `${s}px` : s;
+    return `<span class="slide-custom-size" style="font-size: ${cssSize}; line-height: 1.2;">${text}</span>`;
   });
 
-  res = res.replace(/:::col[ \t]*\n([\s\S]*?)\n[ \t]*:::/g, (_, content: string) => {
-    return `<div class="slide-layout-col">\n\n${content}\n\n</div>`;
-  });
-
-  // 13. Header Bar: :::header(title="...", category="...", logo="...")
-  res = res.replace(/:::header\((.*?)\)/g, (_, args: string) => {
-    const titleMatch = args.match(/title="([^"]*)"/);
-    const catMatch = args.match(/category="([^"]*)"/);
-    const logoMatch = args.match(/logo="([^"]*)"/);
-    const title = titleMatch ? titleMatch[1] : "";
-    const category = catMatch ? catMatch[1] : "";
-    const logo = logoMatch ? logoMatch[1] : "";
-    return `<div class="slide-header-bar"><div class="header-left">${logo ? `<span class="header-logo">${logo}</span>` : ""}<span class="header-title">${title}</span></div>${category ? `<span class="header-category">${category}</span>` : ""}</div>`;
-  });
-
-  // 14. Footer Bar & Copyright: :::footer(left="...", center="...", right="...")
-  res = res.replace(/:::footer\((.*?)\)/g, (_, args: string) => {
-    const leftMatch = args.match(/left="([^"]*)"/);
-    const centerMatch = args.match(/center="([^"]*)"/);
-    const rightMatch = args.match(/right="([^"]*)"/);
-    const left = leftMatch ? leftMatch[1] : "";
-    const center = centerMatch ? centerMatch[1] : "";
-    const right = rightMatch ? rightMatch[1] : "";
-    return `<div class="slide-footer-bar"><div class="footer-left">${left}</div>${center ? `<div class="footer-center">${center}</div>` : ""}<div class="footer-right">${right}</div></div>`;
-  });
-
-  // 15. Slide Watermark: :::watermark(text="CONFIDENTIAL")
-  res = res.replace(/:::watermark\((.*?)\)/g, (_, args: string) => {
-    const textMatch = args.match(/text="([^"]*)"/);
-    const text = textMatch ? textMatch[1] : "CONFIDENTIAL";
-    return `<div class="slide-watermark">${text}</div>`;
-  });
-
-  // 16. Visual Dividers: :::divider(type="gradient|solid|glow|dots")
-  res = res.replace(/:::divider(?:\((.*?)\))?/g, (_, args: string | undefined) => {
-    const typeMatch = (args || "").match(/type="([^"]*)"/);
-    const type = typeMatch ? typeMatch[1] : "gradient";
-    return `<div class="slide-divider divider-${type}"></div>`;
+  res = res.replace(/\{align:(left|center|right|justify)\}([\s\S]*?)\{\/align\}/g, (_, alignVal: string, text: string) => {
+    return `<div class="slide-align-${alignVal}" style="text-align: ${alignVal}; width: 100%;">${text}</div>`;
   });
 
   return res;
@@ -470,17 +458,10 @@ export function parseSlides(markdown: string): Slide[] {
 
       // Extract slide background directive: <!-- bg: ... -->
       const bgMatch = processedMd.match(/<!--\s*bg:\s*([^>]+?)\s*-->/i);
-      let customBgHtml = "";
       if (bgMatch) {
         const bgVal = bgMatch[1].trim();
         slide.bg = bgVal;
         processedMd = processedMd.replace(bgMatch[0], "");
-        if (bgVal.startsWith("gradient-") || bgVal.startsWith("pattern-")) {
-          customBgHtml = `<div class="slide-bg-layer slide-bg-${bgVal}"></div>`;
-        } else if (bgVal.startsWith("#") || bgVal.startsWith("rgb") || bgVal.startsWith("linear-") || bgVal.startsWith("radial-")) {
-          const style = bgVal.includes("gradient") ? `background: ${bgVal}` : `background-color: ${bgVal}`;
-          customBgHtml = `<div class="slide-bg-layer" style="${style}"></div>`;
-        }
       }
 
       // Extract slide watermark directive: <!-- watermark: ... -->
@@ -527,7 +508,7 @@ export function parseSlides(markdown: string): Slide[] {
 
       // Render remaining markdown to HTML
       const parsedHtml = marked.parse(preprocessed) as string;
-      slide.html = `${customBgHtml}${watermarkHtml}${parsedHtml}`;
+      slide.html = `${watermarkHtml}${parsedHtml}`;
 
       return slide;
     });

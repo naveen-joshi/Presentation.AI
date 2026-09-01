@@ -17,6 +17,7 @@ export function EditorToolbar({ editorRef, disabled = false }: EditorToolbarProp
   const [showDiagramMenu, setShowDiagramMenu] = useState(false);
   const [showChartMenu, setShowChartMenu] = useState(false);
   const [showBadgeMenu, setShowBadgeMenu] = useState(false);
+  const [showComponentHub, setShowComponentHub] = useState(false);
 
   // Custom Color Pickers
   const [customColor, setCustomColor] = useState("#38bdf8");
@@ -39,10 +40,224 @@ export function EditorToolbar({ editorRef, disabled = false }: EditorToolbarProp
     setShowDiagramMenu(false);
     setShowChartMenu(false);
     setShowBadgeMenu(false);
+    setShowComponentHub(false);
   };
 
   return (
     <div className="flex flex-wrap items-center gap-1.5 px-3 py-1.5 border-b border-[var(--border)] bg-surface text-xs select-none">
+      {/* ─── Visual Component Inserter Hub Button ─────────────────── */}
+      <div className="relative">
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => {
+            const next = !showComponentHub;
+            closeAllMenus();
+            setShowComponentHub(next);
+          }}
+          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-bold text-[11px] shadow-sm transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+          title="Open Visual Component Gallery (Cards, Bento, Metrics, Charts, Roadmaps)"
+        >
+          <span>➕</span>
+          <span>Add Element</span>
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+
+        {showComponentHub && (
+          <div className="absolute top-full left-0 mt-1.5 w-80 sm:w-96 rounded-2xl border border-[var(--border)] bg-surface p-3 shadow-2xl z-50 animate-fade-in space-y-3">
+            <div className="flex items-center justify-between border-b border-[var(--border)] pb-2">
+              <div>
+                <h4 className="font-bold text-foreground text-xs">Visual Component Gallery</h4>
+                <p className="text-[10px] text-[var(--text-secondary)]">Click to insert pre-built responsive slide elements</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowComponentHub(false)}
+                className="text-[var(--text-tertiary)] hover:text-foreground text-xs p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Category: Visual Data & Metrics */}
+            <div>
+              <div className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider mb-1.5">
+                Data & Visuals
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    insertSnippet('\n:::chart(type="bar", title="Performance & Volume YoY")\nlabels: 2022, 2023, 2024, 2025, 2026\nseries: Option A [20, 35, 60, 95, 140]\nseries: Option B [15, 28, 45, 70, 110]\n:::\n');
+                    closeAllMenus();
+                  }}
+                  className="flex items-start gap-2 p-2 rounded-xl bg-background border border-[var(--border)] hover:border-brand-500 hover:bg-surface-2 text-left transition-all cursor-pointer"
+                >
+                  <span className="text-base">📊</span>
+                  <div>
+                    <div className="font-semibold text-[11px] text-foreground">Bar Chart</div>
+                    <div className="text-[9px] text-[var(--text-secondary)]">Compare multi-series data</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    insertSnippet('\n:::chart(type="donut", title="Market Share Breakdown")\nSegment A: 45\nSegment B: 35\nSegment C: 20\n:::\n');
+                    closeAllMenus();
+                  }}
+                  className="flex items-start gap-2 p-2 rounded-xl bg-background border border-[var(--border)] hover:border-brand-500 hover:bg-surface-2 text-left transition-all cursor-pointer"
+                >
+                  <span className="text-base">🍩</span>
+                  <div>
+                    <div className="font-semibold text-[11px] text-foreground">Donut Chart</div>
+                    <div className="text-[9px] text-[var(--text-secondary)]">Percentages & distribution</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    insertSnippet('\n:::metric(value="+340%", label="Annual Metric Growth", sub="5-Year Horizon")\n');
+                    closeAllMenus();
+                  }}
+                  className="flex items-start gap-2 p-2 rounded-xl bg-background border border-[var(--border)] hover:border-brand-500 hover:bg-surface-2 text-left transition-all cursor-pointer"
+                >
+                  <span className="text-base">📈</span>
+                  <div>
+                    <div className="font-semibold text-[11px] text-foreground">Big Metric Stat</div>
+                    <div className="text-[9px] text-[var(--text-secondary)]">High-impact number + label</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    insertSnippet('\n:::badge(text="Live Status", color="emerald", pulse=true)\n');
+                    closeAllMenus();
+                  }}
+                  className="flex items-start gap-2 p-2 rounded-xl bg-background border border-[var(--border)] hover:border-brand-500 hover:bg-surface-2 text-left transition-all cursor-pointer"
+                >
+                  <span className="text-base">🏷️</span>
+                  <div>
+                    <div className="font-semibold text-[11px] text-foreground">Pill Badge</div>
+                    <div className="text-[9px] text-[var(--text-secondary)]">Status pill with pulse glow</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Category: Cards & Containers */}
+            <div>
+              <div className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider mb-1.5">
+                Cards & Structured Blocks
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    insertSnippet('\n:::grid(cols=2)\n:::card(title="Feature / Option 1", icon="⚡")\n- High throughput execution\n- Sub-10ms response time\n:::\n:::card(title="Feature / Option 2", icon="🛡️")\n- Military-grade encryption\n- Zero-trust architecture\n:::\n:::\n');
+                    closeAllMenus();
+                  }}
+                  className="flex items-start gap-2 p-2 rounded-xl bg-background border border-[var(--border)] hover:border-brand-500 hover:bg-surface-2 text-left transition-all cursor-pointer"
+                >
+                  <span className="text-base">🃏</span>
+                  <div>
+                    <div className="font-semibold text-[11px] text-foreground">2-Col Cards</div>
+                    <div className="text-[9px] text-[var(--text-secondary)]">Side-by-side card blocks</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    insertSnippet('\n:::bento\n:::box(span=2, bg="gradient")\n### 🚀 Primary Pillar\nKey strategic summary and core value proposition.\n:::\n:::box(span=1, bg="glass")\n### ⚡ Stat\n:::metric(value="99.99%", label="Uptime")\n:::\n:::\n');
+                    closeAllMenus();
+                  }}
+                  className="flex items-start gap-2 p-2 rounded-xl bg-background border border-[var(--border)] hover:border-brand-500 hover:bg-surface-2 text-left transition-all cursor-pointer"
+                >
+                  <span className="text-base">🍱</span>
+                  <div>
+                    <div className="font-semibold text-[11px] text-foreground">Bento Grid</div>
+                    <div className="text-[9px] text-[var(--text-secondary)]">Modern asymmetric bento boxes</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    insertSnippet('\n:::callout(type="tip")\n💡 **Key Takeaway**: Strategic summary of the core insight on this slide.\n:::\n');
+                    closeAllMenus();
+                  }}
+                  className="flex items-start gap-2 p-2 rounded-xl bg-background border border-[var(--border)] hover:border-brand-500 hover:bg-surface-2 text-left transition-all cursor-pointer"
+                >
+                  <span className="text-base">💡</span>
+                  <div>
+                    <div className="font-semibold text-[11px] text-foreground">Callout Box</div>
+                    <div className="text-[9px] text-[var(--text-secondary)]">Highlighted insight banner</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    insertSnippet('\n:::timeline\n:::milestone(date="Phase 1", title="Launch", status="completed")\nCore infrastructure deployed.\n:::\n:::milestone(date="Phase 2", title="Scale", status="active")\nExpanding market adoption.\n:::\n:::milestone(date="Phase 3", title="Dominance", status="upcoming")\nGlobal ecosystem reach.\n:::\n:::\n');
+                    closeAllMenus();
+                  }}
+                  className="flex items-start gap-2 p-2 rounded-xl bg-background border border-[var(--border)] hover:border-brand-500 hover:bg-surface-2 text-left transition-all cursor-pointer"
+                >
+                  <span className="text-base">⏱️</span>
+                  <div>
+                    <div className="font-semibold text-[11px] text-foreground">Roadmap Timeline</div>
+                    <div className="text-[9px] text-[var(--text-secondary)]">3-stage milestone line</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Category: Master Slide Layouts */}
+            <div>
+              <div className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider mb-1.5">
+                Full-Slide Layouts
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    insertSnippet('\n:::layout(split)\n:::col\n### 👈 Left Column\n- Strategic objective 1\n- Strategic objective 2\n:::\n:::col\n### 👉 Right Column\n- Execution outcome A\n- Execution outcome B\n:::\n:::\n');
+                    closeAllMenus();
+                  }}
+                  className="flex items-start gap-2 p-2 rounded-xl bg-background border border-[var(--border)] hover:border-brand-500 hover:bg-surface-2 text-left transition-all cursor-pointer"
+                >
+                  <span className="text-base">⚖️</span>
+                  <div>
+                    <div className="font-semibold text-[11px] text-foreground">50/50 Split</div>
+                    <div className="text-[9px] text-[var(--text-secondary)]">Balanced two-column layout</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    insertSnippet('\n:::layout(cover)\n# {gradient:sunset}Keynote Presentation Title{/gradient}\n### High-Impact Subtitle Covering The Presentation Scope\n:::badge(text="Enterprise Briefing", color="emerald", pulse=true)\n:::\n');
+                    closeAllMenus();
+                  }}
+                  className="flex items-start gap-2 p-2 rounded-xl bg-background border border-[var(--border)] hover:border-brand-500 hover:bg-surface-2 text-left transition-all cursor-pointer"
+                >
+                  <span className="text-base">🌟</span>
+                  <div>
+                    <div className="font-semibold text-[11px] text-foreground">Hero Cover</div>
+                    <div className="text-[9px] text-[var(--text-secondary)]">Impactful title opener</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* ─── Slide Actions Pod ────────────────────────────────────── */}
       <div className="flex items-center p-0.5 bg-background rounded-lg border border-[var(--border)]">
         <button

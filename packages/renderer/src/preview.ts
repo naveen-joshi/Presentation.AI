@@ -165,6 +165,23 @@ body.is-grid #presentation {
   letter-spacing: 0.04em;
 }
 
+/* Interactive element selection in studio mode */
+.pv-selectable {
+  cursor: pointer;
+  transition: outline 0.1s ease, box-shadow 0.1s ease;
+}
+.pv-selectable:hover {
+  outline: 1.5px dashed rgba(99, 102, 241, 0.6) !important;
+  outline-offset: 2px !important;
+}
+.is-pv-selected {
+  outline: 2.5px solid #6366f1 !important;
+  outline-offset: 3px !important;
+  border-radius: 6px !important;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.25) !important;
+  position: relative !important;
+}
+
 body.is-empty #pv-empty { display: flex; }
   </style>
 </head>
@@ -220,9 +237,6 @@ ${RICH_CONTENT_RUNTIME}
       over = content.scrollHeight - content.clientHeight > 6 ||
         content.scrollWidth - content.clientWidth > 6;
 
-      // KaTeX display equations and Mermaid hosts deliberately hide their own
-      // overflow to keep a projected slide tidy. Inspect them separately so a
-      // clipped formula or diagram still triggers the editor's overflow nudge.
       var rich = content.querySelectorAll('.katex-display, .mermaid');
       for (var i = 0; !over && i < rich.length; i++) {
         over = rich[i].scrollHeight - rich[i].clientHeight > 6 ||
@@ -232,6 +246,15 @@ ${RICH_CONTENT_RUNTIME}
     send({ type: 'overflow', index: index, overflow: over });
   }
 
+  function markSelectableElements(root) {
+    var selectables = root.querySelectorAll(
+      'h1, h2, h3, h4, h5, h6, .pv-card, .pv-metric, .pv-chart, .pv-callout, .pv-badge, .pv-bento__box, .pv-timeline, .pv-terminal, ul, ol, li, table, blockquote, img, figure, .pv-image'
+    );
+    for (var i = 0; i < selectables.length; i++) {
+      selectables[i].classList.add('pv-selectable');
+    }
+  }
+
   function renderSingle() {
     document.body.classList.remove('is-grid');
     stage.innerHTML = slides[index] || '';
@@ -239,8 +262,12 @@ ${RICH_CONTENT_RUNTIME}
     if (el) el.classList.add('is-active');
     if (window.deckrunPrepareFragments) window.deckrunPrepareFragments(stage, true);
     highlight(stage);
+    markSelectableElements(stage);
     var rich = window.deckrunRenderRichContent ? window.deckrunRenderRichContent(stage) : Promise.resolve();
-    rich.then(function () { requestAnimationFrame(reportOverflow); });
+    rich.then(function () {
+      markSelectableElements(stage);
+      requestAnimationFrame(reportOverflow);
+    });
   }
 
   function renderGrid() {
@@ -291,9 +318,100 @@ ${RICH_CONTENT_RUNTIME}
   }
 
   stage.addEventListener('click', function (e) {
-    if (mode !== 'grid') return;
-    var thumb = e.target.closest ? e.target.closest('.pv-thumb') : null;
-    if (thumb) send({ type: 'goto', index: parseInt(thumb.dataset.index, 10) });
+    if (mode === 'grid') {
+      var thumb = e.target.closest ? e.target.closest('.pv-thumb') : null;
+      if (thumb) send({ type: 'goto', index: parseInt(thumb.dataset.index, 10) });
+      return;
+    }
+
+    var target = e.target;
+    var selectable = target.closest ? target.closest(
+      'h1, h2, h3, h4, h5, h6, .pv-card, .pv-metric, .pv-chart, .pv-callout, .pv-badge, .pv-bento__box, .pv-timeline, .pv-terminal, ul, ol, li, table, blockquote, img, figure, .pv-image'
+    ) : null;
+
+    var prev = stage.querySelectorAll('.is-pv-selected');
+    for (var p = 0; p < prev.length; p++) prev[p].classList.remove('is-pv-selected');
+
+    if (selectable) {
+      selectable.classList.add('is-pv-selected');
+      var elType = 'text';
+      var title = '';
+      var text = selectable.innerText || selectable.textContent || '';
+      var value = '';
+      var label = '';
+      var src = '';
+
+      if (selectable.matches('h1, h2, h3, h4, h5, h6')) {
+        elType = 'heading';
+        text = selectable.innerText.trim();
+      } else if (selectable.tagName === 'IMG') {
+        elType = 'image';
+        src = selectable.getAttribute('src') || '';
+        text = selectable.getAttribute('alt') || '';
+      } else if (selectable.classList.contains('pv-card')) {
+        elType = 'card';
+        var cardTitle = selectable.querySelector('.pv-card__title');
+        title = cardTitle ? cardTitle.innerText.trim() : '';
+      } else if (selectable.classList.contains('pv-metric')) {
+        elType = 'metric';
+        var mVal = selectable.querySelector('.pv-metric__value');
+        var mLbl = selectable.querySelector('.pv-metric__label');
+        value = mVal ? mVal.innerText.trim() : '';
+        label = mLbl ? mLbl.innerText.trim() : '';
+      } else if (selectable.classList.contains('pv-chart')) {
+        elType = 'chart';
+        var cTitle = selectable.querySelector('.pv-chart__title');
+        title = cTitle ? cTitle.innerText.trim() : '';
+      } else if (selectable.classList.contains('pv-callout')) {
+        elType = 'callout';
+      } else if (selectable.classList.contains('pv-badge')) {
+        elType = 'badge';
+        text = selectable.innerText.trim();
+      } else if (selectable.classList.contains('pv-bento__box')) {
+        elType = 'bento-box';
+      } else if (selectable.tagName === 'LI') {
+        elType = 'list-item';
+      } else if (selectable.tagName === 'TABLE') {
+        elType = 'table';
+      }
+
+      send({
+        type: 'element-selected',
+        elType: elType,
+        text: text,
+        title: title,
+        value: value,
+        label: label,
+        src: src,
+        tagName: selectable.tagName.toLowerCase()
+      });
+    } else {
+      send({ type: 'element-deselected' });
+    }
+  });
+
+  document.addEventListener('selectionchange', function () {
+    var sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+      send({ type: 'text-deselected' });
+      return;
+    }
+    var text = sel.toString().trim();
+    if (text.length > 0) {
+      try {
+        var range = sel.getRangeAt(0);
+        var rect = range.getBoundingClientRect();
+        send({
+          type: 'text-selected',
+          text: text,
+          rect: { top: rect.top, left: rect.left, bottom: rect.bottom, right: rect.right, width: rect.width, height: rect.height }
+        });
+      } catch (e) {
+        send({ type: 'text-selected', text: text });
+      }
+    } else {
+      send({ type: 'text-deselected' });
+    }
   });
 
   window.addEventListener('keydown', function (e) {
@@ -309,6 +427,18 @@ ${RICH_CONTENT_RUNTIME}
       else if (k === 's') { e.preventDefault(); send({ type: 'action', action: 'download' }); }
       else if (k === 'l' && e.shiftKey) { e.preventDefault(); send({ type: 'action', action: 'theme' }); }
       return;
+    }
+
+    // Quick single-key presentation actions
+    var key = e.key.toLowerCase();
+    if (!e.altKey && !mod) {
+      if (key === 'f') { e.preventDefault(); send({ type: 'action', action: 'fullscreen' }); return; }
+      if (key === 'p') { e.preventDefault(); send({ type: 'action', action: 'presenter' }); return; }
+      if (key === 'g') { e.preventDefault(); send({ type: 'action', action: 'grid' }); return; }
+      if (key === 'a') { e.preventDefault(); send({ type: 'action', action: 'auto-slideshow' }); return; }
+      if (key === 'b') { e.preventDefault(); send({ type: 'action', action: 'black-screen' }); return; }
+      if (key === 'w') { e.preventDefault(); send({ type: 'action', action: 'white-screen' }); return; }
+      if (key === '?' || key === 'h') { e.preventDefault(); send({ type: 'action', action: 'shortcuts' }); return; }
     }
 
     if (mode === 'grid') {

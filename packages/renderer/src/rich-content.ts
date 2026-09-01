@@ -474,10 +474,17 @@ li:has(.slide-fragment).fragment-revealed, .slide-fragment-item.fragment-reveale
 /* ── Custom Slide Background Layers ───────────────────────────────────── */
 .slide-bg-layer {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
   z-index: 0;
-  border-radius: inherit;
+}
+.slide.slide--has-custom-bg {
+  background: transparent !important;
 }
 .slide-bg-gradient-dark { background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #0f172a 70%); }
 .slide-bg-gradient-indigo { background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #0f172a 100%); }

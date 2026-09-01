@@ -107,23 +107,30 @@ CRITICAL CONTENT & ADHERENCE RULES:
 5. Include speaker notes at the end of EACH slide using: \`<!-- note: Speaker talking points here -->\`
 6. Recommend a matching theme from: nord, midnight, paper, neon, sunset, forest, dracula, emerald, cyberpunk.
 
-Respond in pure Markdown only. Do not enclose the whole output in backticks.`;
+MANDATORY OUTPUT FORMAT:
+Output ONLY pure presentation Markdown starting directly with the first slide title (# Title).
+Do NOT include thinking steps, chain-of-thought, conversational greetings ("Here is..."), or explanations.`;
 
 export function cleanLlmMarkdown(raw: string): string {
   let content = raw.trim();
-  // Strip <think>...</think> or <thought>...</thought> tags
-  content = content.replace(/<(?:think|thought)>[\s\S]*?<\/(?:think|thought)>/gi, "").trim();
-
-  // Strip "Here's a thinking process:" or similar reasoning blocks if before first heading
-  if (content.includes("thinking process") || content.includes("Here's a draft")) {
-    const firstHeadingIdx = content.search(/(?:^|\n)#\s+/);
-    if (firstHeadingIdx !== -1) {
-      content = content.substring(firstHeadingIdx).trim();
-    }
-  }
+  // Strip <think>...</think>, <thought>...</thought>, or <reasoning>...</reasoning>
+  content = content.replace(/<(?:think|thought|reasoning)>[\s\S]*?<\/(?:think|thought|reasoning)>/gi, "").trim();
 
   // Strip outer markdown code fences (```markdown ... ```)
   content = content.replace(/^```(?:markdown|md)?\r?\n([\s\S]*?)\r?\n```$/g, "$1").trim();
+
+  // Strip any reasoning / preamble text before the first actual slide heading (# or ##) or separator (---) or directive
+  const firstSlideIdx = content.search(/(?:^|\n)(?:#[ \t]+|<!--\s*bg:|:::(?:header|card|grid|bento|layout|chart)|---\n)/);
+  if (firstSlideIdx > 0) {
+    content = content.substring(firstSlideIdx).trim();
+  }
+
+  // Convert explicit slide headers like "Slide 1: ...", "Slide 2: ..." into clean slide separators
+  content = content.replace(/(?:^|\n)(?:---\s*\n)?(?:Slide\s+\d+[:\-\s]+[^\n]*\n)(#+\s+)/gi, "\n---\n$1");
+
+  // Remove any trailing markdown code fence backticks if still present
+  content = content.replace(/\n```[ \t]*$/g, "").trim();
+
   return content;
 }
 
