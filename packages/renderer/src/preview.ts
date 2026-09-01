@@ -168,19 +168,40 @@ body.is-grid #presentation {
 /* Interactive element selection in studio mode */
 .pv-selectable {
   cursor: pointer;
+  position: relative;
   transition: outline 0.1s ease, box-shadow 0.1s ease;
 }
 .pv-selectable:hover {
-  outline: 1.5px dashed rgba(99, 102, 241, 0.6) !important;
+  outline: 1.5px dashed rgba(37, 99, 235, 0.7) !important;
   outline-offset: 2px !important;
 }
 .is-pv-selected {
-  outline: 2.5px solid #6366f1 !important;
+  outline: 2.5px solid #2563eb !important;
   outline-offset: 3px !important;
   border-radius: 6px !important;
-  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.25) !important;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.25) !important;
   position: relative !important;
 }
+[contenteditable="true"]:focus {
+  outline: 2.5px solid #2563eb !important;
+  outline-offset: 3px !important;
+  background: rgba(37, 99, 235, 0.05) !important;
+  cursor: text !important;
+}
+.pv-resize-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #ffffff;
+  border: 2px solid #2563eb;
+  border-radius: 2px;
+  z-index: 1000;
+  pointer-events: all;
+}
+.pv-resize-handle.nw { top: -5px; left: -5px; cursor: nwse-resize; }
+.pv-resize-handle.ne { top: -5px; right: -5px; cursor: nesw-resize; }
+.pv-resize-handle.sw { bottom: -5px; left: -5px; cursor: nesw-resize; }
+.pv-resize-handle.se { bottom: -5px; right: -5px; cursor: nwse-resize; }
 
 body.is-empty #pv-empty { display: flex; }
   </style>
@@ -208,6 +229,7 @@ ${RICH_CONTENT_RUNTIME}
   var slides = [];
   var mode = 'single';
   var index = 0;
+  var currentSelectedElement = null;
 
   function send(msg) {
     if (window.parent !== window) window.parent.postMessage(msg, '*');
@@ -246,13 +268,27 @@ ${RICH_CONTENT_RUNTIME}
     send({ type: 'overflow', index: index, overflow: over });
   }
 
+  var SELECTABLE_SELECTOR = 'h1, h2, h3, h4, h5, h6, p, .slide-card, .slide-metric, .slide-chart-box, .slide-callout, .slide-badge, .slide-terminal, .slide-timeline, .bento-box, .slide-grid, .slide-layout, ul, ol, li, table, blockquote, img, figure, .pv-card, .pv-metric, .pv-chart, .pv-callout, .pv-badge, .pv-bento__box, .pv-timeline, .pv-terminal, .pv-image';
+
   function markSelectableElements(root) {
-    var selectables = root.querySelectorAll(
-      'h1, h2, h3, h4, h5, h6, .pv-card, .pv-metric, .pv-chart, .pv-callout, .pv-badge, .pv-bento__box, .pv-timeline, .pv-terminal, ul, ol, li, table, blockquote, img, figure, .pv-image'
-    );
+    var selectables = root.querySelectorAll(SELECTABLE_SELECTOR);
     for (var i = 0; i < selectables.length; i++) {
       selectables[i].classList.add('pv-selectable');
     }
+  }
+
+  function renderResizeHandles(el) {
+    var old = stage.querySelectorAll('.pv-resize-handle');
+    for (var i = 0; i < old.length; i++) old[i].remove();
+    if (!el || el.matches('body, html, #presentation, .slide, .slide__content')) return;
+
+    var handles = ['nw', 'ne', 'sw', 'se'];
+    handles.forEach(function (pos) {
+      var h = document.createElement('div');
+      h.className = 'pv-resize-handle ' + pos;
+      h.dataset.handle = pos;
+      el.appendChild(h);
+    });
   }
 
   function renderSingle() {
@@ -325,15 +361,16 @@ ${RICH_CONTENT_RUNTIME}
     }
 
     var target = e.target;
-    var selectable = target.closest ? target.closest(
-      'h1, h2, h3, h4, h5, h6, .pv-card, .pv-metric, .pv-chart, .pv-callout, .pv-badge, .pv-bento__box, .pv-timeline, .pv-terminal, ul, ol, li, table, blockquote, img, figure, .pv-image'
-    ) : null;
+    var selectable = target.closest ? target.closest(SELECTABLE_SELECTOR) : null;
 
     var prev = stage.querySelectorAll('.is-pv-selected');
     for (var p = 0; p < prev.length; p++) prev[p].classList.remove('is-pv-selected');
 
     if (selectable) {
       selectable.classList.add('is-pv-selected');
+      currentSelectedElement = selectable;
+      renderResizeHandles(selectable);
+
       var elType = 'text';
       var title = '';
       var text = selectable.innerText || selectable.textContent || '';
@@ -348,31 +385,54 @@ ${RICH_CONTENT_RUNTIME}
         elType = 'image';
         src = selectable.getAttribute('src') || '';
         text = selectable.getAttribute('alt') || '';
-      } else if (selectable.classList.contains('pv-card')) {
+      } else if (selectable.classList.contains('slide-card') || selectable.classList.contains('pv-card')) {
         elType = 'card';
-        var cardTitle = selectable.querySelector('.pv-card__title');
+        var cardTitle = selectable.querySelector('.slide-card-title, .pv-card__title');
         title = cardTitle ? cardTitle.innerText.trim() : '';
-      } else if (selectable.classList.contains('pv-metric')) {
+      } else if (selectable.classList.contains('slide-metric') || selectable.classList.contains('pv-metric')) {
         elType = 'metric';
-        var mVal = selectable.querySelector('.pv-metric__value');
-        var mLbl = selectable.querySelector('.pv-metric__label');
+        var mVal = selectable.querySelector('.metric-val, .pv-metric__value');
+        var mLbl = selectable.querySelector('.metric-label, .pv-metric__label');
         value = mVal ? mVal.innerText.trim() : '';
         label = mLbl ? mLbl.innerText.trim() : '';
-      } else if (selectable.classList.contains('pv-chart')) {
+      } else if (selectable.classList.contains('slide-chart-box') || selectable.classList.contains('pv-chart')) {
         elType = 'chart';
-        var cTitle = selectable.querySelector('.pv-chart__title');
+        var cTitle = selectable.querySelector('.chart-title, .pv-chart__title');
         title = cTitle ? cTitle.innerText.trim() : '';
-      } else if (selectable.classList.contains('pv-callout')) {
+      } else if (selectable.classList.contains('slide-callout') || selectable.classList.contains('pv-callout')) {
         elType = 'callout';
-      } else if (selectable.classList.contains('pv-badge')) {
+      } else if (selectable.classList.contains('slide-badge') || selectable.classList.contains('pv-badge')) {
         elType = 'badge';
         text = selectable.innerText.trim();
-      } else if (selectable.classList.contains('pv-bento__box')) {
-        elType = 'bento-box';
       } else if (selectable.tagName === 'LI') {
         elType = 'list-item';
       } else if (selectable.tagName === 'TABLE') {
         elType = 'table';
+      }
+
+      // Direct In-Slide Editable Text: Enable contenteditable on text elements
+      if (selectable.matches('h1, h2, h3, h4, h5, h6, p, li, blockquote, td, th, .slide-card-title, .metric-val, .metric-label, .metric-sub, .callout-body, .slide-badge, span')) {
+        selectable.setAttribute('contenteditable', 'true');
+        selectable.setAttribute('spellcheck', 'false');
+        var origText = selectable.innerText;
+
+        var onBlur = function () {
+          var newTxt = selectable.innerText.trim();
+          if (newTxt && newTxt !== origText.trim()) {
+            send({
+              type: 'element-text-updated',
+              oldText: origText.trim(),
+              newText: newTxt,
+              elType: elType,
+              tagName: selectable.tagName.toLowerCase()
+            });
+            origText = newTxt;
+          }
+        };
+
+        selectable.removeEventListener('blur', selectable._onBlurHandler);
+        selectable._onBlurHandler = onBlur;
+        selectable.addEventListener('blur', onBlur);
       }
 
       send({
@@ -386,6 +446,9 @@ ${RICH_CONTENT_RUNTIME}
         tagName: selectable.tagName.toLowerCase()
       });
     } else {
+      currentSelectedElement = null;
+      var oldHandles = stage.querySelectorAll('.pv-resize-handle');
+      for (var oh = 0; oh < oldHandles.length; oh++) oldHandles[oh].remove();
       send({ type: 'element-deselected' });
     }
   });
@@ -415,6 +478,14 @@ ${RICH_CONTENT_RUNTIME}
   });
 
   window.addEventListener('keydown', function (e) {
+    // If the user is typing in contenteditable, DO NOT advance slides
+    var target = e.target;
+    if (target && (target.isContentEditable || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
+      if (e.key === 'Escape' || (e.key === 'Enter' && target.matches('h1, h2, h3, h4, h5, h6'))) {
+        target.blur();
+      }
+      return;
+    }
     var mod = e.metaKey || e.ctrlKey;
     if (mod) {
       var k = e.key.toLowerCase();
@@ -553,6 +624,28 @@ ${RICH_CONTENT_RUNTIME}
         }
       } else {
         render();
+      }
+    } else if (m.type === 'apply-format') {
+      var selected = currentSelectedElement || stage.querySelector('.is-pv-selected');
+      if (selected) {
+        if (m.action === 'size' && m.param) {
+          selected.style.fontSize = m.param + 'px';
+        } else if (m.action === 'color' && m.param) {
+          selected.style.color = m.param;
+        } else if (m.action === 'bg' && m.param) {
+          selected.style.backgroundColor = m.param;
+        } else if (m.action === 'align' && m.param) {
+          selected.style.textAlign = m.param;
+        } else if (m.action === 'bold') {
+          selected.style.fontWeight = selected.style.fontWeight === 'bold' ? 'normal' : 'bold';
+        } else if (m.action === 'italic') {
+          selected.style.fontStyle = selected.style.fontStyle === 'italic' ? 'normal' : 'italic';
+        } else if (m.action === 'underline') {
+          selected.style.textDecoration = selected.style.textDecoration === 'underline' ? 'none' : 'underline';
+        } else if (m.action === 'delete') {
+          selected.remove();
+          currentSelectedElement = null;
+        }
       }
     }
   });

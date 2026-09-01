@@ -433,6 +433,9 @@ function preprocessDirectives(md: string): string {
     return `<div class="slide-align-${alignVal}" style="text-align: ${alignVal}; width: 100%;">${text}</div>`;
   });
 
+  // 6. Clean any leftover stray ::: markers from malformed or unclosed directives
+  res = res.replace(/^[ \t]*:::[ \t]*$/gm, "");
+
   return res;
 }
 

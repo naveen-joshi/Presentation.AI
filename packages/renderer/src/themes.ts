@@ -202,6 +202,49 @@ export interface Theme extends ThemeSpec {
 const HL = "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/";
 
 const SPECS: Record<string, ThemeSpec> = {
+  // ── Executive Light ───────────────────────────────────────────────────
+  corporate: {
+    label: "corporate light",
+    mood: "light",
+    blurb: "Crisp white canvas, deep navy headings, and cobalt blue accents for executive presentations.",
+    neutrals: {
+      crust: "#f8fafc", mantle: "#ffffff", base: "#ffffff",
+      surface0: "#f1f5f9", surface1: "#e2e8f0", surface2: "#cbd5e1",
+      overlay0: "#94a3b8", overlay1: "#64748b",
+      subtext0: "#334155", subtext1: "#1e293b", text: "#0f172a",
+    },
+    accents: {
+      lavender: "#6366f1", blue: "#2563eb", sapphire: "#0284c7", sky: "#0ea5e9",
+      teal: "#0d9488", green: "#16a34a", yellow: "#d97706", peach: "#ea580c",
+      red: "#dc2626", mauve: "#7c3aed", pink: "#db2777",
+    },
+    roles: { accent: "blue", accent2: "text", accent3: "sapphire" },
+    type: { display: "inter", body: "inter", mono: "jetbrains", weight: 700, tracking: "-0.03em" },
+    decor: "grid",
+    hljs: `${HL}github.min.css`,
+  },
+
+  minimal: {
+    label: "minimal white",
+    mood: "light",
+    blurb: "Pure white canvas, sharp dark typography, and generous whitespace.",
+    neutrals: {
+      crust: "#ffffff", mantle: "#ffffff", base: "#ffffff",
+      surface0: "#f4f4f5", surface1: "#e4e4e7", surface2: "#d4d4d8",
+      overlay0: "#a1a1aa", overlay1: "#71717a",
+      subtext0: "#3f3f46", subtext1: "#27272a", text: "#09090b",
+    },
+    accents: {
+      lavender: "#71717a", blue: "#18181b", sapphire: "#27272a", sky: "#3f3f46",
+      teal: "#059669", green: "#16a34a", yellow: "#d97706", peach: "#ea580c",
+      red: "#e11d48", mauve: "#7c3aed", pink: "#db2777",
+    },
+    roles: { accent: "text", accent2: "red", accent3: "teal" },
+    type: { display: "outfit", body: "inter", mono: "jetbrains", weight: 800, tracking: "-0.04em" },
+    decor: "grid",
+    hljs: `${HL}github.min.css`,
+  },
+
   // ── Dark ───────────────────────────────────────────────────────────────
   midnight: {
     label: "midnight",
@@ -504,8 +547,8 @@ const SPECS: Record<string, ThemeSpec> = {
  * calmest to loudest.
  */
 export const THEME_IDS = [
+  "corporate", "minimal", "daylight", "arctic", "solarized", "paper", "rosequartz", "swiss",
   "midnight", "tokyo", "nord", "dracula", "gruvbox", "rosepine", "forest", "neon",
-  "daylight", "arctic", "solarized", "paper", "rosequartz", "swiss",
 ] as const;
 
 export type ThemeName = string;
@@ -516,8 +559,10 @@ export const THEMES: Record<string, Theme> = Object.fromEntries(
 
 /** `dark` and `light` predate the registry and still name the two originals. */
 const ALIASES: Record<string, string> = {
-  dark: "nord",
-  light: "daylight",
+  dark: "midnight",
+  light: "corporate",
+  white: "corporate",
+  clean: "minimal",
   mocha: "midnight",
   latte: "daylight",
   "tokyo-night": "tokyo",
